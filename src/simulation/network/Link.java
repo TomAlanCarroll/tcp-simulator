@@ -5,7 +5,9 @@
  * Rutgers University, Department of Electrical and Computer Engineering
  * <P> Copyright (c) 2005-2012 Rutgers University
  */
-package simulation;
+package simulation.network;
+
+import simulation.Simulator;
 
 import java.util.ArrayList;
 
@@ -159,7 +161,7 @@ public class Link extends NetworkElement {
 	 * @param source_ the source of the packet
 	 * @param packet_ the new packet in flight on this link
 	 * 
-	 * @see simulation.NetworkElement#send(NetworkElement, Packet)
+	 * @see NetworkElement#send(NetworkElement, Packet)
 	 */
 	@Override
 	public void send(NetworkElement source_, Packet packet_) {
@@ -192,7 +194,7 @@ public class Link extends NetworkElement {
 	 * @param mode_ the transmission mode for this link; value "0" means both-way transmission,
 	 * value "1" means one-way transmission from {@link #node1} to {@link #node2}, and
 	 * value "2" means one-way transmission from {@link #node2} to {@link #node1}
-	 * @see simulation.NetworkElement#process(int)
+	 * @see NetworkElement#process(int)
 	 */
 	@Override
 	public void process(int mode_) {
@@ -230,7 +232,7 @@ public class Link extends NetworkElement {
 	 * @param dummySource_ this dummy parameter is <b><em>ignored</em></b>
 	 * @param dummyPacket_ this dummy parameter is <b><em>ignored</em></b>
 	 * 
-	 * @see simulation.NetworkElement#handle(NetworkElement, simulation.Packet)
+	 * @see NetworkElement#handle(NetworkElement, Packet)
 	 */
 	@Override
 	public void handle(NetworkElement dummySource_, Packet dummyPacket_) {

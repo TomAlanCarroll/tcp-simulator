@@ -6,7 +6,7 @@
  */
 package simulation.tcp;
 
-import simulation.Endpoint;
+import simulation.network.Endpoint;
 
 /**
  * TCP Tahoe implementation of a sender.

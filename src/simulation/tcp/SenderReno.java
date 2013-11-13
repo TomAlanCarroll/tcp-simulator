@@ -6,7 +6,7 @@
  */
 package simulation.tcp;
 
-import simulation.Endpoint;
+import simulation.network.Endpoint;
 
 /**
  * TCP <i>old</i> Reno implementation of a sender that appeared first

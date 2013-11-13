@@ -6,7 +6,7 @@
  */
 package simulation.tcp;
 
-import simulation.Endpoint;
+import simulation.network.Endpoint;
 
 /**
  * The <b>NewReno</b> version of the TCP sender was described in

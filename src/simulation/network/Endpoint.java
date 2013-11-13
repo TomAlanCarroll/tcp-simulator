@@ -4,8 +4,9 @@
  * Rutgers University, Department of Electrical and Computer Engineering
  * <P> Copyright (c) 2005-1012 Rutgers University
  */
-package simulation;
+package simulation.network;
 
+import simulation.Simulator;
 import simulation.tcp.Segment;
 import simulation.tcp.SenderNewReno;
 import simulation.tcp.Receiver;
@@ -98,7 +99,7 @@ public class Endpoint extends NetworkElement {
 	/**
 	 * @param remoteTCPendpoint the remote TCP endpoint to set
 	 */
-	void setRemoteTCPendpoint(Endpoint remoteTCPendpoint) {
+	public void setRemoteTCPendpoint(Endpoint remoteTCPendpoint) {
 		this.remoteEndpoint = remoteTCPendpoint;
 	}
 
@@ -119,7 +120,7 @@ public class Endpoint extends NetworkElement {
 	 * Callback method to call when a simulated timer expires. <BR>
 	 * Currently, the Endpoint does not set any timers.
 	 * 
-	 * @see TimedComponent
+	 * @see simulation.TimedComponent
 	 */
 	public void timerExpired(int timerType_) {
 		/* currently does nothing */
@@ -127,11 +128,11 @@ public class Endpoint extends NetworkElement {
 
 	/**
  	 * Before calling the local {@link Sender}, this method
- 	 * calls {@link Simulator#checkExpiredTimers(TimedComponent)}
+ 	 * calls {@link Simulator#checkExpiredTimers(simulation.TimedComponent)}
  	 * to fire the {@link Sender#rtoTimer} if it expired.</p>
  	 * 
  	 * <p>If the received segment contained an ACK, this method will at
- 	 * the end call {@link Simulator#checkExpiredTimers(TimedComponent)}
+ 	 * the end call {@link Simulator#checkExpiredTimers(simulation.TimedComponent)}
  	 * to fire the {@link Receiver#delayedACKtimer} and have
  	 * the receiver transmit any cumulative ACKs.</p>
  	 * 

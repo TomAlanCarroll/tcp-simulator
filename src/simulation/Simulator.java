@@ -10,6 +10,10 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import simulation.network.Endpoint;
+import simulation.network.Link;
+import simulation.network.Packet;
+import simulation.network.Router;
 import simulation.tcp.Sender;
 
 /**
@@ -61,11 +65,11 @@ public class Simulator {
 	public static final int REPORTING_SIMULATOR = 1 << 1;
 
 	/**Simulator's reporting flag: <br>
-	 * Reports the activities of communicaTtion links ({@link simulation.Link}). */
+	 * Reports the activities of communicaTtion links ({@link simulation.network.Link}). */
 	public static final int REPORTING_LINKS = 1 << 2;
 
 	/**Simulator's reporting flag: <br>
-	 * Reports the activities of {@link simulation.Router}. */
+	 * Reports the activities of {@link simulation.network.Router}. */
 	public static final int REPORTING_ROUTERS = 1 << 3;
 
 	/**Simulator's reporting flag: <br>
@@ -414,8 +418,8 @@ public class Simulator {
 	 * <p>Note that to deal with with synchronization between concurrent events,
 	 * the caller decides which timers will be checked when. It is just to expect
 	 * the caller to know such information. In the current implementation,
-	 * this method is called from {@link Endpoint#send(NetworkElement, Packet)}
-	 * and {@link Endpoint#handle(NetworkElement, Packet)}.</p>
+	 * this method is called from {@link Endpoint#send(simulation.network.NetworkElement, Packet)}
+	 * and {@link Endpoint#handle(simulation.network.NetworkElement, Packet)}.</p>
 	 * 
 	 * @param component_ the timed component for which to check the expired timers
 	 */

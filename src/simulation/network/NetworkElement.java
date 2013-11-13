@@ -4,7 +4,9 @@
  * Rutgers University, Department of Electrical and Computer Engineering
  * <P> Copyright (c) 2005-2012 Rutgers University
  */
-package simulation;
+package simulation.network;
+
+import simulation.Simulator;
 
 /**
  * The interface for simulated network elements (nodes and links).<BR>
@@ -64,7 +66,7 @@ public abstract class NetworkElement {
 	/**
 	 * The method to send data from an upper-layer protocol.<BR>
 	 * Note that parameter <code>source_</code> is usually ignored
-	 * but {@link Link#send(NetworkElement, Packet)} uses it to
+	 * but {@link simulation.network.Link#send(NetworkElement, Packet)} uses it to
 	 * distinguish the nodes connected to its ends.
 	 * 
 	 * @param source_ the <em>immediate</em> source network element that sends this packet;
