@@ -125,8 +125,9 @@ public class Simulator {
 	 * @param bufferSize_ the memory size for the {@link Router} to queue incoming packets
 	 * @param rcvWindow_ the size of the receive buffer for the {@link simulation.tcp.Receiver}
      * @param topology The topology to use in this simulator
+     * @param numClients The number of clients to use in the topology, if applicable
 	 */
-	public Simulator(String tcpVersion_, int bufferSize_, int rcvWindow_, String topology) {
+	public Simulator(String tcpVersion_, int bufferSize_, int rcvWindow_, String topology, int numClients) {
 		String tcpReceiverVersion_ = "Tahoe";	// irrelevant, since our receiver endpoint sends only ACKs, not data
 		System.out.println(
 			"================================================================\n" +
@@ -137,7 +138,7 @@ public class Simulator {
         if (topology.equalsIgnoreCase("direct")) {
             this.topology = new DirectTopology(this, tcpVersion_, bufferSize_, rcvWindow_);
         } else if (topology.equalsIgnoreCase("client-server")) {
-            this.topology = new ClientServerTopology(this, tcpVersion_, bufferSize_, rcvWindow_, 1);
+            this.topology = new ClientServerTopology(this, tcpVersion_, bufferSize_, rcvWindow_, numClients);
         }  else { // Use the DirectTopology by default
             this.topology = new DirectTopology(this, tcpVersion_, bufferSize_, rcvWindow_);
         }
@@ -411,12 +412,14 @@ public class Simulator {
 	 * TCP sender (Tahoe/Reno/NewReno), the number of iterations to run, and the topology to use for the simulation.
      * Optionally, the buffer size and size of the receiving window may be specified
      * as the fourth and fifth arguments, respectively.
+     * The sixth parameter may optionally specify the number of clients in the topology. 1 is the default.
      * Example argv_:
      *              [0]: Tahoe
      *              [1]: 500
      *              [2]: Direct
      *              [3]: 6244
      *              [4]: 65536
+     *              [5]: 4
 	 */
 	public static void main(String[] argv_) {
 		if (argv_.length < 3) {
@@ -429,6 +432,7 @@ public class Simulator {
         // Defaults: For router buffer, six plus one packet currently in transmission:
         int bufferSize_ = 6*Sender.MSS + 100;	// plus little more for ACKs
         int rcvWindow_ = 65536;	// default 64KBytes
+        int numClients_ = 1; // One sender client in the topology by default
 
         // Override the buffer size and receiving window size if provided as arguments
         if (argv_.length > 3) {
@@ -453,9 +457,21 @@ public class Simulator {
             }
         }
 
+        if (argv_.length > 5) {
+            try {
+                numClients_ = Integer.valueOf(argv_[5]);
+            } catch (Exception e) {
+                System.err.println(
+                        "The third argument must be the number of clients as an Integer."
+                );
+                System.exit(1);
+            }
+        }
+
 		// Create the simulator.
 		Simulator simulator = new Simulator(
-			argv_[0], bufferSize_ /* in number of packets */, rcvWindow_ /* in bytes */, argv_[2] /* topology */
+			argv_[0], bufferSize_ /* in number of packets */, rcvWindow_ /* in bytes */,
+                argv_[2] /* topology */, numClients_ /* # of clients*/
 		);
 
 		// Extract the number of iterations (transmission rounds) to run
