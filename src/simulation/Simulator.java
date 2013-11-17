@@ -11,9 +11,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import simulation.network.Endpoint;
-import simulation.network.Link;
 import simulation.network.Packet;
 import simulation.network.Router;
+import simulation.network.topology.DirectTopology;
+import simulation.network.topology.Topology;
 import simulation.tcp.Sender;
 
 /**
@@ -97,18 +98,7 @@ public class Simulator {
 	 * In reality, this data should be read from a file or another input stream. */
 	public static final int TOTAL_DATA_LENGTH = 1000000;
 
-	/** Two endpoints of the TCP connection that will be simulated. */
-	private Endpoint senderEndpt = null;
-	private Endpoint receiverEndpt = null;
-
-	/** The router that intermediated between the TCP endpoints. */
-	private Router router = null;
-
-	/** The communication link that connects {@link #senderEndpt} to {@link #router}. */
-	private Link link1 = null;
-
-	/** The communication link that connects {@link #receiverEndpt} to {@link #router}. */
-	private Link link2 = null;
+    private Topology topology;
 
 	/** Simulation iterations represent the clock ticks for the simulation.
 	 * Each iteration is a transmission round, which is one RTT cycle long.
@@ -129,58 +119,24 @@ public class Simulator {
 	 * The input arguments are used to set up the router, so that it
 	 * represents the bottleneck resource.
 	 * 
-	 * @param tcpSenderVersion_ the TCP version of the sending endpoint&mdash;one of: "Tahoe", "Reno", or "NewReno")
+	 * @param tcpVersion_ the TCP version of the sending endpoint&mdash;one of: "Tahoe", "Reno", or "NewReno")
 	 * @param bufferSize_ the memory size for the {@link Router} to queue incoming packets
 	 * @param rcvWindow_ the size of the receive buffer for the {@link simulation.tcp.Receiver}
+     * @param topology The topology to use in this simulator
 	 */
-	public Simulator(String tcpSenderVersion_, int bufferSize_, int rcvWindow_) {
+	public Simulator(String tcpVersion_, int bufferSize_, int rcvWindow_, String topology) {
 		String tcpReceiverVersion_ = "Tahoe";	// irrelevant, since our receiver endpoint sends only ACKs, not data
 		System.out.println(
 			"================================================================\n" +
-			"          Running TCP " + tcpSenderVersion_ + " sender  (and " +
+			"          Running TCP " + tcpVersion_ + " sender  (and " +
 			tcpReceiverVersion_ + " receiver).\n"
 		);
-		try {
-			senderEndpt = new Endpoint(
-				this, "sender",
-				null /* the receiver endpoint will be set shortly */,
-				tcpSenderVersion_, rcvWindow_
-			);
-			// We assume that the receiver endpoint only receives
-			// packets sent by the sender endpoint.
-			// However, a curious reader may quickly change this code
-			// and have both endpoints send in both directions.
-			receiverEndpt = new Endpoint(
-				this, "receiver",
-				senderEndpt, tcpReceiverVersion_, rcvWindow_
-			);
-			senderEndpt.setRemoteTCPendpoint(receiverEndpt); // set it now, couldn't set in constructor
-		} catch (Exception ex) {
-			System.out.println(ex.toString());
-			return;
-		}
-		router = new Router(this, "router", bufferSize_);
 
-		// The transmission time and propagation time for this link
-		// are set by default to zero (negligible compared to clock tick).
-		link1 = new Link(
-			this, "link1", senderEndpt, router,
-			0.001, /* transmission time as fraction of a clock tick */
-			0.001  /* propagation time as fraction of a clock tick */
-		);
-		link2 = new Link(	// all that matters is that t_x(Link2) = 10 * t_x(Link1)
-			this, "link2", receiverEndpt, router,
-			0.01, /* transmission time as fraction of a clock tick */
-			0.001 /* propagation time as fraction of a clock tick */
-		);
-
-		// Configure the endpoints with their adjoining links:
-		senderEndpt.setLink(link1);
-		receiverEndpt.setLink(link2);
-
-		// Configure the router's forwarding table:
-		router.addForwardingTableEntry(senderEndpt, link1);
-		router.addForwardingTableEntry(receiverEndpt, link2);
+        if (topology.equalsIgnoreCase("direct")) {
+            this.topology = new DirectTopology(this, tcpVersion_, bufferSize_, rcvWindow_);
+        } else { // Use the DirectTopology by default
+            this.topology = new DirectTopology(this, tcpVersion_, bufferSize_, rcvWindow_);
+        }
 	}
 
 	/**
@@ -210,102 +166,109 @@ public class Simulator {
 			"================================================================"
 		);
 
-		// The Simulator also plays the role of an Application
-		// that is using services of the TCP protocol.
-		// Here we provide the input data stream only in the first iteration
-		// and in the remaining iterations the system clocks itself
-		// -- based on the received ACKs, the sender will keep
-		// sending any remaining data.
-		//
-		// The sender will not transmit the entire input stream at once.
-		// Rather, it sends burst-by-burst of segments, as allowed by
-		// its congestion window and other parameters,
-		// which are set based on the received ACKs.
-		Packet tmpPkt_ = new Packet(receiverEndpt, inputBuffer_.array());
-		senderEndpt.send(null, tmpPkt_);
+        /**
+         * Direct Topology
+         */
+        if (topology instanceof DirectTopology) {
+            // The Simulator also plays the role of an Application
+            // that is using services of the TCP protocol.
+            // Here we provide the input data stream only in the first iteration
+            // and in the remaining iterations the system clocks itself
+            // -- based on the received ACKs, the sender will keep
+            // sending any remaining data.
+            //
+            // The sender will not transmit the entire input stream at once.
+            // Rather, it sends burst-by-burst of segments, as allowed by
+            // its congestion window and other parameters,
+            // which are set based on the received ACKs.
+            Packet tmpPkt_ = new Packet(((DirectTopology) topology).getReceiverEndpoint(), inputBuffer_.array());
+            ((DirectTopology) topology).getSenderEndpoint().send(null, tmpPkt_);
 
-		// Iterate for the given number of transmission rounds.
-		// Note that an iteration represents a clock tick for the simulation.
-		// Each iteration is a transmission round, which is one RTT cycle long.
-		for (int iter_ = 0; iter_ <= num_iter_; iter_++) {
-			if (
-				(Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
-			) {
-				System.out.println(	//TODO prints incorrectly for the first iteration!
-					"Start of RTT #" + (int)currentTime +
-					" ................................................"
-				);
-			} else {
-				System.out.print(currentTime + "\t");
-			}
+            // Iterate for the given number of transmission rounds.
+            // Note that an iteration represents a clock tick for the simulation.
+            // Each iteration is a transmission round, which is one RTT cycle long.
+            for (int iter_ = 0; iter_ <= num_iter_; iter_++) {
+                if (
+                    (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
+                ) {
+                    System.out.println(	//TODO prints incorrectly for the first iteration!
+                        "Start of RTT #" + (int)currentTime +
+                        " ................................................"
+                    );
+                } else {
+                    System.out.print(currentTime + "\t");
+                }
 
-			// Let the first link move any packets:
-			link1.process(2);
-			// Our main goal is that the sending endpoint handles acknowledgments
-			// received via the router in the previous transmission round, if any.
+                // Let the first link move any packets:
+                ((DirectTopology) topology).getLink1().process(2);
+                // Our main goal is that the sending endpoint handles acknowledgments
+                // received via the router in the previous transmission round, if any.
 
-			senderEndpt.process(1);
+                ((DirectTopology) topology).getSenderEndpoint().process(1);
 
-			// Let the first link again move any packets:
-			link1.process(1);
-			// This time our main goal is that link transports any new
-			// data packets from sender to the router.
+                // Let the first link again move any packets:
+                ((DirectTopology) topology).getLink1().process(1);
+                // This time our main goal is that link transports any new
+                // data packets from sender to the router.
 
-			// Let the router relay any packets:
-			router.process(0);
-			// As a result, the router may have transmitted some packets
-			// to its adjoining links.
+                // Let the router relay any packets:
+                ((DirectTopology) topology).getRouter().process(0);
+                // As a result, the router may have transmitted some packets
+                // to its adjoining links.
 
-			// Let the second link move any packets:
-			link2.process(2);
-			// Our main goal is that the receiver processes the received
-			// data segments and generates ACKs. The ACKs will be ready
-			// for the trip back to the sending endpoint.
+                // Let the second link move any packets:
+                ((DirectTopology) topology).getLink2().process(2);
+                // Our main goal is that the receiver processes the received
+                // data segments and generates ACKs. The ACKs will be ready
+                // for the trip back to the sending endpoint.
 
-			receiverEndpt.process(2);
+                ((DirectTopology) topology).getReceiverEndpoint().process(2);
 
-			// Let the second link move any packets:
-			link2.process(1);
-			// Our main goal is to deliver the ACKs from the receiver to the router.
+                // Let the second link move any packets:
+                ((DirectTopology) topology).getLink2().process(1);
+                // Our main goal is to deliver the ACKs from the receiver to the router.
 
-			// Let the router relay any packets:
-			router.process(0);
-			// As a result, the router may have transmitted some packets
-			// to its adjoining links.
+                // Let the router relay any packets:
+                ((DirectTopology) topology).getRouter().process(0);
+                // As a result, the router may have transmitted some packets
+                // to its adjoining links.
 
-			if (
-				(Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
-			) {
-				System.out.println(
-					"End of RTT #" + (int)currentTime +
-					"   ------------------------------------------------\n"
-				);
-			}
+                if (
+                    (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
+                ) {
+                    System.out.println(
+                        "End of RTT #" + (int)currentTime +
+                        "   ------------------------------------------------\n"
+                    );
+                }
 
-			// At the end of an iteration, increment the simulation clock by one tick:
-			currentTime += 1.0;
-		} //end for() loop
+                // At the end of an iteration, increment the simulation clock by one tick:
+                currentTime += 1.0;
+            } //end for() loop
 
-		System.out.println(
-			"     ====================  E N D   O F   S E S S I O N  ===================="
-		);
-		// How many bytes were transmitted:
-		int actualTotalTransmitted_ = senderEndpt.getSender().getTotalBytesTransmitted();
+            System.out.println(
+                "     ====================  E N D   O F   S E S S I O N  ===================="
+            );
+            // How many bytes were transmitted:
+            int actualTotalTransmitted_ = ((DirectTopology) topology).getSenderEndpoint().getSender().getTotalBytesTransmitted();
 
-		// How many bytes could have been transmitted with the given
-		// bottleneck capacity, if there were no losses due to
-		// exceeding the bottleneck capacity
-		// (Note that we add one MSS for the packet that immediately
-		// goes into transmission in the router):
-		int potentialTotalTransmitted_ =
-			(router.getMaxBufferSize() + Sender.MSS) * num_iter_;
+            // How many bytes could have been transmitted with the given
+            // bottleneck capacity, if there were no losses due to
+            // exceeding the bottleneck capacity
+            // (Note that we add one MSS for the packet that immediately
+            // goes into transmission in the router):
+            int potentialTotalTransmitted_ =
+                (((DirectTopology) topology).getRouter().getMaxBufferSize() + Sender.MSS) * num_iter_;
 
-		// Report the utilization of the sender:
-		float utilization_ =
-			(float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
-		System.out.println(
-			"Sender utilization: " + Math.round(utilization_*100.0f) + " %"
-		);
+            // Report the utilization of the sender:
+            float utilization_ =
+                (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
+            System.out.println(
+                "Sender utilization: " + Math.round(utilization_*100.0f) + " %"
+            );
+        } else {
+            throw new IllegalStateException("Unsupported topology selected");
+        }
 	} //end the function run()
 
 	/** The main method. Takes the number of iterations as
@@ -315,26 +278,54 @@ public class Simulator {
 	 * TCP-sender-version (one of Tahoe/Reno/NewReno) AND number-of-iterations
 	 * </pre>
 	 * @param argv_ Input argument(s) should contain the version of the
-	 * TCP sender (Tahoe/Reno/NewReno) and the number of iterations to run.
+	 * TCP sender (Tahoe/Reno/NewReno), the number of iterations to run, and the topology to use for the simulation.
+     * Optionally, the buffer size and size of the receiving window may be specified
+     * as the fourth and fifth arguments, respectively.
+     * Example argv_:
+     *              [0]: Tahoe
+     *              [1]: 500
+     *              [2]: Direct
+     *              [3]: 6244
+     *              [4]: 65536
 	 */
 	public static void main(String[] argv_) {
-		if (argv_.length < 2) {
+		if (argv_.length < 3) {
 			System.err.println(
 				"Please specify the TCP sender version (Tahoe/Reno/NewReno) and the number of iterations!"
 			);
 			System.exit(1);
 		}
 
-		// Note: You could alter this program, so these values
-		// are entered as arguments on the command line, if desired so.
+        // Defaults: For router buffer, six plus one packet currently in transmission:
+        int bufferSize_ = 6*Sender.MSS + 100;	// plus little more for ACKs
+        int rcvWindow_ = 65536;	// default 64KBytes
 
-		// For router buffer, six plus one packet currently in transmission:
-		int bufferSize_ = 6*Sender.MSS + 100;	// plus little more for ACKs
-		int rcvWindow_ = 65536;	// default 64KBytes
+        // Override the buffer size and receiving window size if provided as arguments
+        if (argv_.length > 3) {
+            try {
+                bufferSize_ = Integer.valueOf(argv_[3]);
+            } catch (Exception e) {
+                System.err.println(
+                        "The third argument must be the router buffer size as an Integer."
+                );
+                System.exit(1);
+            }
+        }
+
+        if (argv_.length > 4) {
+            try {
+                rcvWindow_ = Integer.valueOf(argv_[4]);
+            } catch (Exception e) {
+                System.err.println(
+                        "The third argument must be the size of the receive buffer as an Integer."
+                );
+                System.exit(1);
+            }
+        }
 
 		// Create the simulator.
 		Simulator simulator = new Simulator(
-			argv_[0], bufferSize_ /* in number of packets */, rcvWindow_ /* in bytes */
+			argv_[0], bufferSize_ /* in number of packets */, rcvWindow_ /* in bytes */, argv_[2] /* topology */
 		);
 
 		// Extract the number of iterations (transmission rounds) to run

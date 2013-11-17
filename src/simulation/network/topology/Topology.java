@@ -1,5 +1,10 @@
-package simulation.network;
+package simulation.network.topology;
 
+import simulation.network.Endpoint;
+import simulation.network.Link;
+import simulation.network.Router;
+
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -9,7 +14,7 @@ import java.util.Set;
  *
  * @author Tom Carroll
  */
-public class Topology {
+public abstract class Topology {
     /**
      * The set of endpoints in this topology
      */
@@ -25,6 +30,21 @@ public class Topology {
      */
     private Set<Router> routers;
 
+    /**
+     * Default constructor
+     */
+    public Topology () {
+        this.endpoints = new HashSet<Endpoint>();
+        this.links = new HashSet<Link>();
+        this.routers = new HashSet<Router>();
+    }
+
+    /**
+     * Constructor that specifies endpoints, links, and routers
+     * @param endpoints The set of endpoints in this topology
+     * @param links The set of links between endpoints and routers in this topology
+     * @param routers The set of routers in this topology
+     */
     public Topology(Set<Endpoint> endpoints, Set<Link> links, Set<Router> routers) {
         this.endpoints = endpoints;
         this.links = links;
