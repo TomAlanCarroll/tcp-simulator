@@ -11,8 +11,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import simulation.network.Endpoint;
+import simulation.network.Link;
 import simulation.network.Packet;
 import simulation.network.Router;
+import simulation.network.topology.ClientServerTopology;
 import simulation.network.topology.DirectTopology;
 import simulation.network.topology.Topology;
 import simulation.tcp.Sender;
@@ -134,7 +136,9 @@ public class Simulator {
 
         if (topology.equalsIgnoreCase("direct")) {
             this.topology = new DirectTopology(this, tcpVersion_, bufferSize_, rcvWindow_);
-        } else { // Use the DirectTopology by default
+        } else if (topology.equalsIgnoreCase("client-server")) {
+            this.topology = new ClientServerTopology(this, tcpVersion_, bufferSize_, rcvWindow_, 1);
+        }  else { // Use the DirectTopology by default
             this.topology = new DirectTopology(this, tcpVersion_, bufferSize_, rcvWindow_);
         }
 	}
@@ -265,6 +269,127 @@ public class Simulator {
                 (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
             System.out.println(
                 "Sender utilization: " + Math.round(utilization_*100.0f) + " %"
+            );
+        }
+        /**
+         * Client-Server Topology
+         */
+        else if (topology instanceof ClientServerTopology) {
+            // The Simulator also plays the role of an Application
+            // that is using services of the TCP protocol.
+            // Here we provide the input data stream only in the first iteration
+            // and in the remaining iterations the system clocks itself
+            // -- based on the received ACKs, the sender will keep
+            // sending any remaining data.
+            //
+            // The sender will not transmit the entire input stream at once.
+            // Rather, it sends burst-by-burst of segments, as allowed by
+            // its congestion window and other parameters,
+            // which are set based on the received ACKs.
+
+            Endpoint client;
+            Packet tmpPkt_;
+            Iterator<Endpoint> clientIterator = ((ClientServerTopology) topology).getClientEndpoints().iterator();
+            while (clientIterator.hasNext()) {
+                tmpPkt_ = new Packet(((ClientServerTopology) topology).getServerEndpoint(), inputBuffer_.array());
+                client = clientIterator.next();
+                client.send(null, tmpPkt_);
+            }
+
+            // Iterate for the given number of transmission rounds.
+            // Note that an iteration represents a clock tick for the simulation.
+            // Each iteration is a transmission round, which is one RTT cycle long.
+            for (int iter_ = 0; iter_ <= num_iter_; iter_++) {
+                if (
+                        (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
+                        ) {
+                    System.out.println(	//TODO prints incorrectly for the first iteration!
+                            "Start of RTT #" + (int)currentTime +
+                                    " ................................................"
+                    );
+                } else {
+                    System.out.print(currentTime + "\t");
+                }
+
+                // Let the first link move any packets:
+                Link clientLink;
+                Iterator<Link> clientLinkIterator = ((ClientServerTopology) topology).getClientLinks().iterator();
+                while (clientLinkIterator.hasNext()) {
+                    clientLink = clientLinkIterator.next();
+                    clientLink.process(2);
+                }
+
+                clientIterator = ((ClientServerTopology) topology).getClientEndpoints().iterator();
+                while (clientIterator.hasNext()) {
+                    client = clientIterator.next();
+                    client.process(1);
+                }
+
+                // Let the first links again move any packets:
+                // Let the first links move any packets:
+                clientLinkIterator = ((ClientServerTopology) topology).getClientLinks().iterator();
+                while (clientLinkIterator.hasNext()) {
+                    clientLink = clientLinkIterator.next();
+                    clientLink.process(1);
+                }
+
+                // This time our main goal is that link transports any new
+                // data packets from sender to the router.
+
+                // Let the router relay any packets:
+                ((ClientServerTopology) topology).getRouter().process(0);
+                // As a result, the router may have transmitted some packets
+                // to its adjoining links.
+
+                // Let the second link move any packets:
+                ((ClientServerTopology) topology).getServerLink().process(2);
+                // Our main goal is that the receiver processes the received
+                // data segments and generates ACKs. The ACKs will be ready
+                // for the trip back to the sending endpoint.
+
+                ((ClientServerTopology) topology).getServerEndpoint().process(2);
+
+                // Let the second link move any packets:
+                ((ClientServerTopology) topology).getServerLink().process(1);
+                // Our main goal is to deliver the ACKs from the receiver to the router.
+
+                // Let the router relay any packets:
+                ((ClientServerTopology) topology).getRouter().process(0);
+                // As a result, the router may have transmitted some packets
+                // to its adjoining links.
+
+                if (
+                        (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
+                        ) {
+                    System.out.println(
+                            "End of RTT #" + (int)currentTime +
+                                    "   ------------------------------------------------\n"
+                    );
+                }
+
+                // At the end of an iteration, increment the simulation clock by one tick:
+                currentTime += 1.0;
+            } //end for() loop
+
+            System.out.println(
+                    "     ====================  E N D   O F   S E S S I O N  ===================="
+            );
+            // How many bytes were transmitted:
+            int actualTotalTransmitted_ = ((ClientServerTopology) topology).getServerEndpoint().getSender().getTotalBytesTransmitted();
+
+            // How many bytes could have been transmitted with the given
+            // bottleneck capacity, if there were no losses due to
+            // exceeding the bottleneck capacity
+            // (Note that we add one MSS for the packet that immediately
+            // goes into transmission in the router):
+            int potentialTotalTransmitted_ =
+                    (((ClientServerTopology) topology).getRouter().getMaxBufferSize() + Sender.MSS) * num_iter_;
+
+            // Report the utilization of the sender:
+            float utilization_ =
+                    (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
+            System.out.println(
+                    "Sender utilization: " + Math.round(utilization_*100.0f) + " %"
             );
         } else {
             throw new IllegalStateException("Unsupported topology selected");

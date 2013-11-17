@@ -113,9 +113,9 @@ public class DirectTopology extends Topology {
      * @return The router
      */
     public Router getRouter() {
-        Iterator<Router> endpointIterator = this.getRouters().iterator();
-        while (endpointIterator.hasNext()) {
-            Router currentRouter = endpointIterator.next();
+        Iterator<Router> routerIterator = this.getRouters().iterator();
+        while (routerIterator.hasNext()) {
+            Router currentRouter = routerIterator.next();
             if (currentRouter.getName().equalsIgnoreCase("router")) {
                 return currentRouter;
             }
@@ -129,9 +129,9 @@ public class DirectTopology extends Topology {
      * @return The link between the sender and router
      */
     public Link getLink1() {
-        Iterator<Link> endpointIterator = this.getLinks().iterator();
-        while (endpointIterator.hasNext()) {
-            Link currentLink = endpointIterator.next();
+        Iterator<Link> linkIterator = this.getLinks().iterator();
+        while (linkIterator.hasNext()) {
+            Link currentLink = linkIterator.next();
             if (currentLink.getName().equalsIgnoreCase("link1")) {
                 return currentLink;
             }
@@ -145,9 +145,9 @@ public class DirectTopology extends Topology {
      * @return The link between the receiver and router
      */
     public Link getLink2() {
-        Iterator<Link> endpointIterator = this.getLinks().iterator();
-        while (endpointIterator.hasNext()) {
-            Link currentLink = endpointIterator.next();
+        Iterator<Link> linkIterator = this.getLinks().iterator();
+        while (linkIterator.hasNext()) {
+            Link currentLink = linkIterator.next();
             if (currentLink.getName().equalsIgnoreCase("link2")) {
                 return currentLink;
             }

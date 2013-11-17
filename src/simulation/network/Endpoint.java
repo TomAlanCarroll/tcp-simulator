@@ -79,6 +79,15 @@ public class Endpoint extends NetworkElement {
 		receiver = new Receiver(this, rcvWindow_);
 	}
 
+    /**
+     * Gets the Link for this Endpoint
+     *
+     * @return the adjoining communication Link
+     */
+    public Link getLink() {
+        return this.networkLayerProtocol;
+    }
+
 	/**
 	 * Configures this endpoint with the adjoining
 	 * communication link object, the attribute {@link #networkLayerProtocol}.
