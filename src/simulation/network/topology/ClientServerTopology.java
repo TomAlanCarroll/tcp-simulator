@@ -27,19 +27,9 @@ public class ClientServerTopology extends Topology {
         super();
 
         try {
-            Endpoint clientEndpoint;
+            Endpoint clientEndpoint = null;
             Link clientLink;
             Iterator<Endpoint> clientIterator;
-
-            for (int i = 0; i < numClients; i++) {
-                // Client Endpoint
-                clientEndpoint = new Endpoint(
-                        simulator, "client" + i,
-                        null /* the server endpoint will be set shortly */,
-                        tcpVersion, receiverBufferWindow
-                );
-                this.getEndpoints().add(clientEndpoint);
-            }
 
             // We assume that the server endpoint only receives
             // packets sent by the client endpoints.
@@ -49,12 +39,23 @@ public class ClientServerTopology extends Topology {
             );
             this.getEndpoints().add(serverEndpoint);
 
+            for (int i = 0; i < numClients; i++) {
+                // Client Endpoint
+                clientEndpoint = new Endpoint(
+                        simulator, "client" + i,
+                        serverEndpoint,
+                        tcpVersion, receiverBufferWindow
+                );
+                this.getEndpoints().add(clientEndpoint);
+            }
+
+            serverEndpoint.setRemoteTCPendpoint(clientEndpoint);
+
             Router router = new Router(simulator, "router", bufferSize);
 
             clientIterator = this.getEndpoints().iterator();
             while (clientIterator.hasNext()) {
                 Endpoint client = clientIterator.next();
-                client.setRemoteTCPendpoint(serverEndpoint);
 
                 // The transmission time and propagation time for this link
                 // are set by default to zero (negligible compared to clock tick).
@@ -80,7 +81,6 @@ public class ClientServerTopology extends Topology {
             clientIterator = this.getEndpoints().iterator();
             while (clientIterator.hasNext()) {
                 Endpoint client = clientIterator.next();
-                client.setRemoteTCPendpoint(serverEndpoint);
 
                 router.addForwardingTableEntry(client, client.getLink());
 
