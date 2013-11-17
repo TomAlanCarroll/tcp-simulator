@@ -375,7 +375,12 @@ public class Simulator {
                     "     ====================  E N D   O F   S E S S I O N  ===================="
             );
             // How many bytes were transmitted:
-            int actualTotalTransmitted_ = ((ClientServerTopology) topology).getServerEndpoint().getSender().getTotalBytesTransmitted();
+            int actualTotalTransmitted_ = 0;
+            clientIterator = ((ClientServerTopology) topology).getClientEndpoints().iterator();
+            while (clientIterator.hasNext()) {
+                client = clientIterator.next();
+                actualTotalTransmitted_ += client.getSender().getTotalBytesTransmitted();
+            }
 
             // How many bytes could have been transmitted with the given
             // bottleneck capacity, if there were no losses due to
