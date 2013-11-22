@@ -5,6 +5,7 @@ import simulation.network.Link;
 import simulation.network.Router;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 /**
@@ -49,6 +50,43 @@ public abstract class Topology {
         this.endpoints = endpoints;
         this.links = links;
         this.routers = routers;
+    }
+
+    /**
+     * Gets the {@link Endpoint} with the specified name
+     * @param name The name of the {@link Endpoint} to search for
+     * @return The {@link Endpoint} with the specified name
+     * @throws IllegalStateException If no {@link Endpoint} exists with that name
+     */
+    public Endpoint getEndpointWithName(String name) {
+        Iterator<Endpoint> endpointIterator = this.getEndpoints().iterator();
+        while (endpointIterator.hasNext()) {
+            Endpoint currentEndpoint = endpointIterator.next();
+            if (currentEndpoint.getName().equals(name)) {
+                return currentEndpoint;
+            }
+        }
+
+        throw new IllegalStateException("Unable to find specified Endpoint with name " + name);
+    }
+
+    /**
+     * Gets the set of {@link Endpoint}(s) containing the specified name
+     * @param name The partial name of the {@link Endpoint}(s) to search for
+     * @return The set of {@link Endpoint}(s) containing the specified name
+     * @throws IllegalStateException If no {@link Endpoint} exists with that name
+     */
+    public Set<Endpoint> getEndpointsContainingName(String name) {
+        Set<Endpoint> endpointSet = new HashSet<Endpoint>();
+        Iterator<Endpoint> endpointIterator = this.getEndpoints().iterator();
+        while (endpointIterator.hasNext()) {
+            Endpoint currentEndpoint = endpointIterator.next();
+            if (currentEndpoint.getName().contains(name)) {
+                endpointSet.add(currentEndpoint);
+            }
+        }
+
+        return endpointSet;
     }
 
     public Set<Endpoint> getEndpoints() {
