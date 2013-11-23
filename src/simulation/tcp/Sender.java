@@ -9,7 +9,7 @@ package simulation.tcp;
 
 import java.nio.ByteBuffer;
 
-import simulation.Endpoint;
+import simulation.network.Endpoint;
 import simulation.Simulator;
 import simulation.TimedComponent;
 import simulation.TimerSimulated;

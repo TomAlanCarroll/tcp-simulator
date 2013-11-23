@@ -6,8 +6,8 @@
  */
 package simulation.tcp;
 
-import simulation.NetworkElement;
-import simulation.Packet;
+import simulation.network.NetworkElement;
+import simulation.network.Packet;
 
 /**
  * TCP segment, which could carry either data, ACK, or both.<BR>

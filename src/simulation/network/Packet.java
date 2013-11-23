@@ -4,7 +4,9 @@
  * Rutgers University, Department of Electrical and Computer Engineering
  * <P> Copyright (c) 2005-2012 Rutgers University
  */
-package simulation;
+package simulation.network;
+
+import simulation.network.NetworkElement;
 
 /**
  * Data packet class.

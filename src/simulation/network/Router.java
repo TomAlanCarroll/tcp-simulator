@@ -5,7 +5,9 @@
  * <P> Copyright (c) 2005-2013 Rutgers University
  */
 
-package simulation;
+package simulation.network;
+
+import simulation.Simulator;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,10 +35,10 @@ import java.util.Iterator;
  * packets in {@link #packetBuffer} to their outgoing links ({@link #outputPorts}).</p>
  * 
  * <p>Note that this class defines an inner class for output ports
- * (see {@link simulation.Router.OutputPort}).</p>
+ * (see {@link Router.OutputPort}).</p>
  * 
  * @author Ivan Marsic
- * @see Simulator
+ * @see simulation.Simulator
  */
 public class Router extends NetworkElement {
 	/**
@@ -127,7 +129,7 @@ public class Router extends NetworkElement {
  	 * and when it should call this method.
  	 * 
  	 * @param mode_ the processing mode, currently not used and ignored
- 	 * @see simulation.Router.OutputPort#transmitPackets()
+ 	 * @see Router.OutputPort#transmitPackets()
  	 * @see simulation.Simulator#run(java.nio.ByteBuffer, int)
 	 */
 	@Override
@@ -151,7 +153,7 @@ public class Router extends NetworkElement {
 	 * 
 	 * @param dummySource_ [ignored]
  	 * @param dummyPacket_ [ignored]
- 	 * @see simulation.NetworkElement#send(NetworkElement, Packet)
+ 	 * @see simulation.network.NetworkElement#send(NetworkElement, Packet)
  	 */
 	@Override
  	public void send(NetworkElement dummySource_, Packet dummyPacket_) {
@@ -166,8 +168,8 @@ public class Router extends NetworkElement {
 	 * @param source_ the immediate source of the arrived packet
 	 * @param receivedPacket_ the packet that arrived on an incoming link
 	 * 
-	 * @see simulation.Router.OutputPort#handleIncomingPacket(NetworkElement, Packet)
-	 * @see simulation.NetworkElement#handle(NetworkElement, simulation.Packet)
+	 * @see Router.OutputPort#handleIncomingPacket(NetworkElement, Packet)
+	 * @see simulation.network.NetworkElement#handle(NetworkElement, simulation.network.Packet)
 	 */
 	@Override
 	public void handle(NetworkElement source_, Packet receivedPacket_) {
@@ -302,7 +304,7 @@ public class Router extends NetworkElement {
 		 * Transmits packets on the outgoing link.
 		 * Should be called only when the time is right.
 		 * 
-		 * @see simulation.Router#process(int)
+		 * @see Router#process(int)
 		 */
 		void transmitPackets() {
 			// Check if there is a packet currently in transmission:
