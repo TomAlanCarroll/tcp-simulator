@@ -5,8 +5,6 @@ import simulation.network.Endpoint;
 import simulation.network.Link;
 import simulation.network.Router;
 
-import java.util.Iterator;
-
 /**
  * Constructs and simulates a simple network topology composed of 2 endpoints, 1 router, and a link between each
  * endpoint and the router.
@@ -81,15 +79,7 @@ public class DirectTopology extends Topology {
      * @return The sender endpoint
      */
     public Endpoint getSenderEndpoint() {
-        Iterator<Endpoint> endpointIterator = this.getEndpoints().iterator();
-        while (endpointIterator.hasNext()) {
-            Endpoint currentEndpoint = endpointIterator.next();
-            if (currentEndpoint.getName().equalsIgnoreCase("sender")) {
-                return currentEndpoint;
-            }
-        }
-
-        throw new IllegalStateException("Unable to find Sender Endpoint");
+        return getEndpointWithName("server");
     }
 
     /**
@@ -97,15 +87,7 @@ public class DirectTopology extends Topology {
      * @return The receiver endpoint
      */
     public Endpoint getReceiverEndpoint() {
-        Iterator<Endpoint> endpointIterator = this.getEndpoints().iterator();
-        while (endpointIterator.hasNext()) {
-            Endpoint currentEndpoint = endpointIterator.next();
-            if (currentEndpoint.getName().equalsIgnoreCase("receiver")) {
-                return currentEndpoint;
-            }
-        }
-
-        throw new IllegalStateException("Unable to find Receiver Endpoint");
+        return getEndpointWithName("receiver");
     }
 
     /**
@@ -113,15 +95,7 @@ public class DirectTopology extends Topology {
      * @return The router
      */
     public Router getRouter() {
-        Iterator<Router> routerIterator = this.getRouters().iterator();
-        while (routerIterator.hasNext()) {
-            Router currentRouter = routerIterator.next();
-            if (currentRouter.getName().equalsIgnoreCase("router")) {
-                return currentRouter;
-            }
-        }
-
-        throw new IllegalStateException("Unable to find Router");
+        return getRouterWithName("router");
     }
 
     /**
@@ -129,15 +103,7 @@ public class DirectTopology extends Topology {
      * @return The link between the sender and router
      */
     public Link getLink1() {
-        Iterator<Link> linkIterator = this.getLinks().iterator();
-        while (linkIterator.hasNext()) {
-            Link currentLink = linkIterator.next();
-            if (currentLink.getName().equalsIgnoreCase("link1")) {
-                return currentLink;
-            }
-        }
-
-        throw new IllegalStateException("Unable to find link1");
+        return getLinkWithName("link1");
     }
 
     /**
@@ -145,14 +111,6 @@ public class DirectTopology extends Topology {
      * @return The link between the receiver and router
      */
     public Link getLink2() {
-        Iterator<Link> linkIterator = this.getLinks().iterator();
-        while (linkIterator.hasNext()) {
-            Link currentLink = linkIterator.next();
-            if (currentLink.getName().equalsIgnoreCase("link2")) {
-                return currentLink;
-            }
-        }
-
-        throw new IllegalStateException("Unable to find link2");
+        return getLinkWithName("link2");
     }
 }

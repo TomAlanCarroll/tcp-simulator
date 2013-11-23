@@ -4,9 +4,7 @@ import simulation.network.Endpoint;
 import simulation.network.Link;
 import simulation.network.Router;
 
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
+import java.util.*;
 
 /**
  * This class is used for network topologies composed of {@link simulation.network.NetworkElement}s.
@@ -22,6 +20,11 @@ public abstract class Topology {
     private Set<Endpoint> endpoints;
 
     /**
+     * (Optional) The mapping of {@link Endpoint} names from senders to receivers.
+     */
+    private Map<String, String> endpointNameMappings;
+
+    /**
      * The set of links between endpoints and routers in this topology
      */
     private Set<Link> links;
@@ -35,9 +38,7 @@ public abstract class Topology {
      * Default constructor
      */
     public Topology () {
-        this.endpoints = new HashSet<Endpoint>();
-        this.links = new HashSet<Link>();
-        this.routers = new HashSet<Router>();
+        this(new HashSet<Endpoint>(), new HashSet<Link>(), new HashSet<Router>());
     }
 
     /**
@@ -47,9 +48,21 @@ public abstract class Topology {
      * @param routers The set of routers in this topology
      */
     public Topology(Set<Endpoint> endpoints, Set<Link> links, Set<Router> routers) {
+        this(new HashSet<Endpoint>(), new HashSet<Link>(), new HashSet<Router>(), new HashMap<String, String>());
+    }
+
+    /**
+     * Constructor that specifies endpoints, links, routers, and endpoint name mappings
+     * @param endpoints The set of endpoints in this topology
+     * @param links The set of links between endpoints and routers in this topology
+     * @param routers The set of routers in this topology
+     * @param endpointNameMappings The mapping of {@link Endpoint} names from senders to receivers.
+     */
+    public Topology(Set<Endpoint> endpoints, Set<Link> links, Set<Router> routers, Map<String, String> endpointNameMappings) {
         this.endpoints = endpoints;
         this.links = links;
         this.routers = routers;
+        this.endpointNameMappings = endpointNameMappings;
     }
 
     /**
@@ -169,6 +182,14 @@ public abstract class Topology {
 
     public void setEndpoints(Set<Endpoint> endpoints) {
         this.endpoints = endpoints;
+    }
+
+    public Map<String, String> getEndpointNameMappings() {
+        return endpointNameMappings;
+    }
+
+    public void setEndpointNameMappings(Map<String, String> endpointNameMappings) {
+        this.endpointNameMappings = endpointNameMappings;
     }
 
     public Set<Link> getLinks() {

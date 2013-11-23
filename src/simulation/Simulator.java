@@ -14,7 +14,7 @@ import simulation.network.Endpoint;
 import simulation.network.Link;
 import simulation.network.Packet;
 import simulation.network.Router;
-import simulation.network.topology.ClientServerTopology;
+import simulation.network.topology.CloudTopology;
 import simulation.network.topology.DirectTopology;
 import simulation.network.topology.Topology;
 import simulation.tcp.Sender;
@@ -137,8 +137,8 @@ public class Simulator {
 
         if (topology.equalsIgnoreCase("direct")) {
             this.topology = new DirectTopology(this, tcpVersion_, bufferSize_, rcvWindow_);
-        } else if (topology.equalsIgnoreCase("client-server")) {
-            this.topology = new ClientServerTopology(this, tcpVersion_, bufferSize_, rcvWindow_, numClients);
+        } else if (topology.equalsIgnoreCase("cloud")) {
+            this.topology = new CloudTopology(this, tcpVersion_, bufferSize_, rcvWindow_, numClients);
         }  else { // Use the DirectTopology by default
             this.topology = new DirectTopology(this, tcpVersion_, bufferSize_, rcvWindow_);
         }
@@ -273,9 +273,9 @@ public class Simulator {
             );
         }
         /**
-         * Client-Server Topology
+         * Cloud Topology
          */
-        else if (topology instanceof ClientServerTopology) {
+        else if (topology instanceof CloudTopology) {
             // The Simulator also plays the role of an Application
             // that is using services of the TCP protocol.
             // Here we provide the input data stream only in the first iteration
@@ -288,12 +288,13 @@ public class Simulator {
             // its congestion window and other parameters,
             // which are set based on the received ACKs.
 
-            Endpoint client;
+            Endpoint client, server;
             Packet tmpPkt_;
-            Iterator<Endpoint> clientIterator = ((ClientServerTopology) topology).getClientEndpoints().iterator();
+            Iterator<Endpoint> clientIterator = ((CloudTopology) topology).getClientEndpoints().iterator();
+            Iterator<Endpoint> serverIterator = ((CloudTopology) topology).getServerEndpoints().iterator();
             while (clientIterator.hasNext()) {
-                tmpPkt_ = new Packet(((ClientServerTopology) topology).getServerEndpoint(), inputBuffer_.array());
                 client = clientIterator.next();
+                tmpPkt_ = new Packet(topology.getEndpointWithName(topology.getEndpointNameMappings().get(client.getName())), inputBuffer_.array());
                 client.send(null, tmpPkt_);
             }
 
@@ -314,13 +315,13 @@ public class Simulator {
 
                 // Let the first link move any packets:
                 Link clientLink;
-                Iterator<Link> clientLinkIterator = ((ClientServerTopology) topology).getClientLinks().iterator();
+                Iterator<Link> clientLinkIterator = ((CloudTopology) topology).getClientLinks().iterator();
                 while (clientLinkIterator.hasNext()) {
                     clientLink = clientLinkIterator.next();
                     clientLink.process(2);
                 }
 
-                clientIterator = ((ClientServerTopology) topology).getClientEndpoints().iterator();
+                clientIterator = ((CloudTopology) topology).getClientEndpoints().iterator();
                 while (clientIterator.hasNext()) {
                     client = clientIterator.next();
                     client.process(1);
@@ -328,7 +329,7 @@ public class Simulator {
 
                 // Let the first links again move any packets:
                 // Let the first links move any packets:
-                clientLinkIterator = ((ClientServerTopology) topology).getClientLinks().iterator();
+                clientLinkIterator = ((CloudTopology) topology).getClientLinks().iterator();
                 while (clientLinkIterator.hasNext()) {
                     clientLink = clientLinkIterator.next();
                     clientLink.process(1);
@@ -338,24 +339,36 @@ public class Simulator {
                 // data packets from sender to the router.
 
                 // Let the router relay any packets:
-                ((ClientServerTopology) topology).getRouter().process(0);
+                ((CloudTopology) topology).getRouter().process(0);
                 // As a result, the router may have transmitted some packets
                 // to its adjoining links.
 
                 // Let the second link move any packets:
-                ((ClientServerTopology) topology).getServerLink().process(2);
+                Link serverLink;
+                Iterator<Link> serverLinkIterator = ((CloudTopology) topology).getServerLinks().iterator();
+                while (serverLinkIterator.hasNext()) {
+                    serverLink = serverLinkIterator.next();
+                    serverLink.process(2);
+                }
                 // Our main goal is that the receiver processes the received
                 // data segments and generates ACKs. The ACKs will be ready
                 // for the trip back to the sending endpoint.
-
-                ((ClientServerTopology) topology).getServerEndpoint().process(2);
+                serverIterator = ((CloudTopology) topology).getServerEndpoints().iterator();
+                while (serverIterator.hasNext()) {
+                    server = serverIterator.next();
+                    server.process(2);
+                }
 
                 // Let the second link move any packets:
-                ((ClientServerTopology) topology).getServerLink().process(1);
+                serverLinkIterator = ((CloudTopology) topology).getServerLinks().iterator();
+                while (serverLinkIterator.hasNext()) {
+                    serverLink = serverLinkIterator.next();
+                    serverLink.process(1);
+                }
                 // Our main goal is to deliver the ACKs from the receiver to the router.
 
                 // Let the router relay any packets:
-                ((ClientServerTopology) topology).getRouter().process(0);
+                ((CloudTopology) topology).getRouter().process(0);
                 // As a result, the router may have transmitted some packets
                 // to its adjoining links.
 
@@ -377,7 +390,7 @@ public class Simulator {
             );
             // How many bytes were transmitted:
             int actualTotalTransmitted_ = 0;
-            clientIterator = ((ClientServerTopology) topology).getClientEndpoints().iterator();
+            clientIterator = ((CloudTopology) topology).getClientEndpoints().iterator();
             while (clientIterator.hasNext()) {
                 client = clientIterator.next();
                 actualTotalTransmitted_ += client.getSender().getTotalBytesTransmitted();
@@ -389,7 +402,7 @@ public class Simulator {
             // (Note that we add one MSS for the packet that immediately
             // goes into transmission in the router):
             int potentialTotalTransmitted_ =
-                    (((ClientServerTopology) topology).getRouter().getMaxBufferSize() + Sender.MSS) * num_iter_;
+                    (((CloudTopology) topology).getRouter().getMaxBufferSize() + Sender.MSS) * num_iter_;
 
             // Report the utilization of the sender:
             float utilization_ =
