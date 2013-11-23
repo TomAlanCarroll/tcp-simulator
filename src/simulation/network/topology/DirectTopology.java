@@ -79,7 +79,7 @@ public class DirectTopology extends Topology {
      * @return The sender endpoint
      */
     public Endpoint getSenderEndpoint() {
-        return getEndpointWithName("server");
+        return getEndpointWithName("sender");
     }
 
     /**
