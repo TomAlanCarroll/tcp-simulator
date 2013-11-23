@@ -88,6 +88,80 @@ public abstract class Topology {
 
         return endpointSet;
     }
+    
+    /**
+     * Gets the {@link Router} with the specified name
+     * @param name The name of the {@link Router} to search for
+     * @return The {@link Router} with the specified name
+     * @throws IllegalStateException If no {@link Router} exists with that name
+     */
+    public Router getRouterWithName(String name) {
+        Iterator<Router> routerIterator = this.getRouters().iterator();
+        while (routerIterator.hasNext()) {
+            Router currentRouter = routerIterator.next();
+            if (currentRouter.getName().equals(name)) {
+                return currentRouter;
+            }
+        }
+
+        throw new IllegalStateException("Unable to find specified Router with name " + name);
+    }
+
+    /**
+     * Gets the set of {@link Router}(s) containing the specified name
+     * @param name The partial name of the {@link Router}(s) to search for
+     * @return The set of {@link Router}(s) containing the specified name
+     * @throws IllegalStateException If no {@link Router} exists with that name
+     */
+    public Set<Router> getRoutersContainingName(String name) {
+        Set<Router> routerSet = new HashSet<Router>();
+        Iterator<Router> routerIterator = this.getRouters().iterator();
+        while (routerIterator.hasNext()) {
+            Router currentRouter = routerIterator.next();
+            if (currentRouter.getName().contains(name)) {
+                routerSet.add(currentRouter);
+            }
+        }
+
+        return routerSet;
+    }
+
+    /**
+     * Gets the {@link Link} with the specified name
+     * @param name The name of the {@link Link} to search for
+     * @return The {@link Link} with the specified name
+     * @throws IllegalStateException If no {@link Link} exists with that name
+     */
+    public Link getLinkWithName(String name) {
+        Iterator<Link> linkIterator = this.getLinks().iterator();
+        while (linkIterator.hasNext()) {
+            Link currentLink = linkIterator.next();
+            if (currentLink.getName().equals(name)) {
+                return currentLink;
+            }
+        }
+
+        throw new IllegalStateException("Unable to find specified Link with name " + name);
+    }
+
+    /**
+     * Gets the set of {@link Link}(s) containing the specified name
+     * @param name The partial name of the {@link Link}(s) to search for
+     * @return The set of {@link Link}(s) containing the specified name
+     * @throws IllegalStateException If no {@link Link} exists with that name
+     */
+    public Set<Link> getLinksContainingName(String name) {
+        Set<Link> linkSet = new HashSet<Link>();
+        Iterator<Link> linkIterator = this.getLinks().iterator();
+        while (linkIterator.hasNext()) {
+            Link currentLink = linkIterator.next();
+            if (currentLink.getName().contains(name)) {
+                linkSet.add(currentLink);
+            }
+        }
+
+        return linkSet;
+    }
 
     public Set<Endpoint> getEndpoints() {
         return endpoints;
