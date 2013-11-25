@@ -176,14 +176,6 @@ public class DirectTopology extends Topology {
     }
 
     /**
-     * Gets the routers in this topology
-     * @return The routers
-     */
-    public List<Router> getRouters() {
-        return getRoutersContainingName("router");
-    }
-
-    /**
      * Gets link1 which is the link between the sender and router
      * @return The link between the sender and router
      */
