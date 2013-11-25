@@ -110,7 +110,7 @@ public abstract class Topology {
      */
     public Router getRouterWithName(String name) {
         for (int i = 0; i < this.getRouters().size(); i++) {
-            if (this.getRouters().get(i).getName().contains(name)) {
+            if (this.getRouters().get(i).getName().equals(name)) {
                 return this.getRouters().get(i);
             }
         }
