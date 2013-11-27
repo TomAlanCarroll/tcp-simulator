@@ -147,7 +147,17 @@ public abstract class Sender implements TimedComponent {
  	/** Last advertised size of the currently available space in the receiver's buffer. */
  	protected int rcvWindow = 65536;	// assume default as 65536 bytes
 
- 	/**
+    /**
+     * Counter for the number of bytes retransmitted by the sender
+     */
+    protected int retransmitByteCounter = 0;
+
+    /**
+     * Counter for the number of timeouts
+     */
+    protected int timeoutCounter = 0;
+
+    /**
  	 * Base class constructor; not public.
  	 */
  	protected Sender(Endpoint localTCPendpoint_) {
@@ -195,6 +205,7 @@ public abstract class Sender implements TimedComponent {
 				(Simulator.currentReportingLevel  & Simulator.REPORTING_SENDERS) != 0
 			) {
 				System.out.println(" ***** RTO timer timeout! *****");
+                timeoutCounter++;
 			}
 	
 			// If RTO timeout occurred, handle it:
@@ -325,6 +336,32 @@ public abstract class Sender implements TimedComponent {
 		// had the sequence number assigned as equal to _zero_ !!
 		return (lastByteAcked + 1);
 	}
+
+    /**
+     * Accessor for retrieving the statistics of the total number
+     * of bytes retransmitted so far during this
+     * simulation.  This value is used for statistics gathering and
+     * reporting purposes.
+     *
+     * @return Returns the cumulative number of bytes retransmitted thus far.
+     */
+    public int getTotalBytesRetransmitted() {
+        // NOTE: This assumes that the very first byte in the entire session
+        // had the sequence number assigned as equal to _zero_ !!
+        return retransmitByteCounter;
+    }
+
+    /**
+     * Accessor for retrieving the statistics of the total number
+     * of timeouts.
+     *
+     * @return Returns the number of timeouts thus far.
+     */
+    public int getTimeoutCounter() {
+        // NOTE: This assumes that the very first byte in the entire session
+        // had the sequence number assigned as equal to _zero_ !!
+        return timeoutCounter;
+    }
 
 	/**
 	 * Helper method to extract the oldest unacknowledged segment

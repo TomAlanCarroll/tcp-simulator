@@ -103,6 +103,10 @@ public class SenderTahoe extends Sender {
 		// Recall that Tahoe sender sends only one segment
 		// when a loss is detected!
 		Segment oldestSegment_ = getOldestUnacknowledgedSegment();
+
+        // Add the retransmitted bytes to the retransmitByteCounter for statistics
+        retransmitByteCounter += oldestSegment_.dataPayload.length;
+
 		// the timestamp of retransmitted segments should be set to "-1"
 		oldestSegment_.timestamp = -1;
 	    localEndpoint.getNetworkLayerProtocol().send(

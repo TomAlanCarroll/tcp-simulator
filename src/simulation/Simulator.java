@@ -272,6 +272,7 @@ public class Simulator {
             );
             // How many bytes were transmitted:
             int actualTotalTransmitted_ = ((DirectTopology) topology).getSenderEndpoint().getSender().getTotalBytesTransmitted();
+            int actualTotalRetransmitted_ = ((DirectTopology) topology).getSenderEndpoint().getSender().getTotalBytesRetransmitted();
 
             // How many bytes could have been transmitted with the given
             // bottleneck capacity, if there were no losses due to
@@ -286,6 +287,21 @@ public class Simulator {
                 (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
             System.out.println(
                 "Sender utilization: " + Math.round(utilization_*100.0f) + " %"
+            );
+
+            // Report the throughput:
+            System.out.println(
+                    "Throughput (MB/RTTs): " + ((double)actualTotalTransmitted_ / 1048576) / num_iter_
+            );
+
+            // Report the retransmission ratio:
+            System.out.println(
+                    "Retransmission Ratio (% per MB): " + ((double)actualTotalRetransmitted_ / (double)actualTotalTransmitted_) * 100 + "%"
+            );
+
+            // Report the number of timeouts:
+            System.out.println(
+                    "Timeouts: " + ((DirectTopology) topology).getSenderEndpoint().getSender().getTimeoutCounter()
             );
         }
         /**
@@ -406,10 +422,14 @@ public class Simulator {
             );
             // How many bytes were transmitted:
             int actualTotalTransmitted_ = 0;
+            int actualTotalRetransmitted_ = 0;
+            int numTimeouts = 0;
             clientIterator = ((CloudTopology) topology).getClientEndpoints().iterator();
             while (clientIterator.hasNext()) {
                 client = clientIterator.next();
                 actualTotalTransmitted_ += client.getSender().getTotalBytesTransmitted();
+                actualTotalRetransmitted_ += client.getSender().getTotalBytesRetransmitted();
+                numTimeouts += client.getSender().getTimeoutCounter();
             }
 
             // How many bytes could have been transmitted with the given
@@ -425,6 +445,21 @@ public class Simulator {
                     (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
             System.out.println(
                     "Sender utilization: " + Math.round(utilization_*100.0f) + " %"
+            );
+
+            // Report the throughput:
+            System.out.println(
+                    "Throughput (MB/RTTs): " + ((double)actualTotalTransmitted_ / 1048576) / num_iter_
+            );
+
+            // Report the retransmission ratio:
+            System.out.println(
+                    "Retransmission Ratio (% per MB): " + ((double)actualTotalRetransmitted_ / (double)actualTotalTransmitted_) * 100 + "%"
+            );
+
+            // Report the number of timeouts:
+            System.out.println(
+                    "Timeouts: " + numTimeouts
             );
         } else {
             throw new IllegalStateException("Unsupported topology selected");
