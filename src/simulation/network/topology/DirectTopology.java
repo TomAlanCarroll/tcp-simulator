@@ -47,90 +47,59 @@ public class DirectTopology extends Topology {
 
             senderEndpoint.setRemoteTCPendpoint(receiverEndpoint);
 
-            // Base case: 1 Router
-            if (numRouters == 1) {
-                Router router = new Router(simulator, "router0", bufferSize);
+            Router router;
+            Link link;
+            for (int i = 0; i < numRouters; i++) {
+                router = new Router(simulator, "router" + i, bufferSize);
 
-                // The transmission time and propagation time for this link
-                // are set by default to zero (negligible compared to clock tick).
-                Link senderLink = new Link(
-                        simulator, "link0", senderEndpoint, router,
-                        0.001, /* transmission time as fraction of a clock tick */
-                        0.001  /* propagation time as fraction of a clock tick */
-                );
-                Link receiverLink = new Link(	// all that matters is that t_x(Link2) = 10 * t_x(senderLink)
-                        simulator, "link1", receiverEndpoint, router,
-                        0.01, /* transmission time as fraction of a clock tick */
-                        0.001 /* propagation time as fraction of a clock tick */
-                );
+                if (i == 0) { // Connect to sender
+                    link = new Link(
+                            simulator, "link" + i, senderEndpoint, router,
+                            0.001, /* transmission time as fraction of a clock tick */
+                            0.001  /* propagation time as fraction of a clock tick */
+                    );
 
-                // Configure the endpoints with their adjoining links:
-                senderEndpoint.setLink(senderLink);
-                receiverEndpoint.setLink(receiverLink);
+                    // Configure the endpoints with their adjoining links:
+                    senderEndpoint.setLink(link);
 
-                // Configure the router's forwarding table:
-                router.addForwardingTableEntry(senderEndpoint, senderLink);
-                router.addForwardingTableEntry(receiverEndpoint, receiverLink);
+                    // Configure the router's forwarding table:
+                    router.addForwardingTableEntry(senderEndpoint, link);
 
-                this.getLinks().add(senderLink);
-                this.getLinks().add(receiverLink);
+                    this.getLinks().add(link);
+                }
+
+                if (i == numRouters  - 1) { // Connect to receiver
+                    link = new Link(	// all that matters is that t_x(Link2) = 10 * t_x(Link1)
+                            simulator, "link" + (i + 1), receiverEndpoint, router,
+                            0.01, /* transmission time as fraction of a clock tick */
+                            0.001 /* propagation time as fraction of a clock tick */
+                    );
+
+                    // Configure the endpoints with their adjoining links:
+                    receiverEndpoint.setLink(link);
+
+                    // Configure the router's forwarding table:
+                    router.addForwardingTableEntry(receiverEndpoint, link);
+
+                    this.getLinks().add(link);
+                }
+
+                if (i > 0) {
+                    // Connect router to the previous router
+                    link = new Link(
+                            simulator, "link" + i, getRouterWithName("router" + (i - 1)), router,
+                            0.001, /* transmission time as fraction of a clock tick */
+                            0.001  /* propagation time as fraction of a clock tick */
+                    );
+
+                    // Configure the router's forwarding table:
+                    router.addForwardingTableEntry(senderEndpoint, link);
+                    getRouterWithName("router" + (i - 1)).addForwardingTableEntry(receiverEndpoint, link);
+
+                    this.getLinks().add(link);
+                }
 
                 this.getRouters().add(router);
-            } else { // Else N Routers
-                Router router;
-                Link link;
-                for (int i = 0; i < numRouters; i++) {
-                    router = new Router(simulator, "router" + i, bufferSize);
-
-                    if (i == 0) { // Connect to sender
-                        link = new Link(
-                                simulator, "link" + i, senderEndpoint, router,
-                                0.001, /* transmission time as fraction of a clock tick */
-                                0.001  /* propagation time as fraction of a clock tick */
-                        );
-
-                        // Configure the endpoints with their adjoining links:
-                        senderEndpoint.setLink(link);
-
-                        // Configure the router's forwarding table:
-                        router.addForwardingTableEntry(senderEndpoint, link);
-
-                        this.getLinks().add(link);
-                    }
-
-                    if (i == numRouters  - 1) { // Connect to receiver
-                        link = new Link(	// all that matters is that t_x(Link2) = 10 * t_x(Link1)
-                                simulator, "link" + (i + 1), receiverEndpoint, router,
-                                0.01, /* transmission time as fraction of a clock tick */
-                                0.001 /* propagation time as fraction of a clock tick */
-                        );
-
-                        // Configure the endpoints with their adjoining links:
-                        receiverEndpoint.setLink(link);
-
-                        // Configure the router's forwarding table:
-                        router.addForwardingTableEntry(receiverEndpoint, link);
-
-                        this.getLinks().add(link);
-                    }
-
-                    if (i > 0) {
-                        // Connect router to the previous router
-                        link = new Link(
-                                simulator, "link" + i, getRouterWithName("router" + (i - 1)), router,
-                                0.001, /* transmission time as fraction of a clock tick */
-                                0.001  /* propagation time as fraction of a clock tick */
-                        );
-
-                        // Configure the router's forwarding table:
-                        router.addForwardingTableEntry(senderEndpoint, link);
-                        getRouterWithName("router" + (i - 1)).addForwardingTableEntry(receiverEndpoint, link);
-
-                        this.getLinks().add(link);
-                    }
-
-                    this.getRouters().add(router);
-                }
             }
         } catch (Exception ex) {
             System.out.println(ex.toString());
