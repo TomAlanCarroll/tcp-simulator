@@ -30,15 +30,15 @@ public abstract class Topology {
     private Set<Link> links;
 
     /**
-     * The set of routers in this topology
+     * The set of routers in this topology in order from the sender(s) to the receiver(s)
      */
-    private Set<Router> routers;
+    private List<Router> routers;
 
     /**
      * Default constructor
      */
     public Topology () {
-        this(new HashSet<Endpoint>(), new HashSet<Link>(), new HashSet<Router>());
+        this(new HashSet<Endpoint>(), new HashSet<Link>(), new ArrayList<Router>());
     }
 
     /**
@@ -47,8 +47,8 @@ public abstract class Topology {
      * @param links The set of links between endpoints and routers in this topology
      * @param routers The set of routers in this topology
      */
-    public Topology(Set<Endpoint> endpoints, Set<Link> links, Set<Router> routers) {
-        this(new HashSet<Endpoint>(), new HashSet<Link>(), new HashSet<Router>(), new HashMap<String, String>());
+    public Topology(Set<Endpoint> endpoints, Set<Link> links, List<Router> routers) {
+        this(endpoints, links, routers, new HashMap<String, String>());
     }
 
     /**
@@ -58,7 +58,7 @@ public abstract class Topology {
      * @param routers The set of routers in this topology
      * @param endpointNameMappings The mapping of {@link Endpoint} names from senders to receivers.
      */
-    public Topology(Set<Endpoint> endpoints, Set<Link> links, Set<Router> routers, Map<String, String> endpointNameMappings) {
+    public Topology(Set<Endpoint> endpoints, Set<Link> links, List<Router> routers, Map<String, String> endpointNameMappings) {
         this.endpoints = endpoints;
         this.links = links;
         this.routers = routers;
@@ -109,11 +109,9 @@ public abstract class Topology {
      * @throws IllegalStateException If no {@link Router} exists with that name
      */
     public Router getRouterWithName(String name) {
-        Iterator<Router> routerIterator = this.getRouters().iterator();
-        while (routerIterator.hasNext()) {
-            Router currentRouter = routerIterator.next();
-            if (currentRouter.getName().equals(name)) {
-                return currentRouter;
+        for (int i = 0; i < this.getRouters().size(); i++) {
+            if (this.getRouters().get(i).getName().equals(name)) {
+                return this.getRouters().get(i);
             }
         }
 
@@ -126,13 +124,12 @@ public abstract class Topology {
      * @return The set of {@link Router}(s) containing the specified name
      * @throws IllegalStateException If no {@link Router} exists with that name
      */
-    public Set<Router> getRoutersContainingName(String name) {
-        Set<Router> routerSet = new HashSet<Router>();
-        Iterator<Router> routerIterator = this.getRouters().iterator();
-        while (routerIterator.hasNext()) {
-            Router currentRouter = routerIterator.next();
-            if (currentRouter.getName().contains(name)) {
-                routerSet.add(currentRouter);
+    public List<Router> getRoutersContainingName(String name) {
+        List<Router> routerSet = new ArrayList<Router>();
+
+        for (int i = 0; i < this.getRouters().size(); i++) {
+            if (this.getRouters().get(i).getName().contains(name)) {
+                routerSet.add(this.getRouters().get(i));
             }
         }
 
@@ -200,11 +197,11 @@ public abstract class Topology {
         this.links = links;
     }
 
-    public Set<Router> getRouters() {
+    public List<Router> getRouters() {
         return routers;
     }
 
-    public void setRouters(Set<Router> routers) {
+    public void setRouters(List<Router> routers) {
         this.routers = routers;
     }
 }
