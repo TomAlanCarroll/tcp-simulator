@@ -49,59 +49,31 @@ public class DirectTopology extends Topology {
 
             // Base case: 1 Router
             if (numRouters == 1) {
-                Router router = new Router(simulator, "router", bufferSize);
+                Router router = new Router(simulator, "router0", bufferSize);
 
                 // The transmission time and propagation time for this link
                 // are set by default to zero (negligible compared to clock tick).
-                Link link1 = new Link(
-                        simulator, "link1", senderEndpoint, router,
+                Link senderLink = new Link(
+                        simulator, "link0", senderEndpoint, router,
                         0.001, /* transmission time as fraction of a clock tick */
                         0.001  /* propagation time as fraction of a clock tick */
                 );
-                Link link2 = new Link(	// all that matters is that t_x(Link2) = 10 * t_x(Link1)
-                        simulator, "link2", receiverEndpoint, router,
+                Link receiverLink = new Link(	// all that matters is that t_x(Link2) = 10 * t_x(senderLink)
+                        simulator, "link1", receiverEndpoint, router,
                         0.01, /* transmission time as fraction of a clock tick */
                         0.001 /* propagation time as fraction of a clock tick */
                 );
 
                 // Configure the endpoints with their adjoining links:
-                senderEndpoint.setLink(link1);
-                receiverEndpoint.setLink(link2);
+                senderEndpoint.setLink(senderLink);
+                receiverEndpoint.setLink(receiverLink);
 
                 // Configure the router's forwarding table:
-                router.addForwardingTableEntry(senderEndpoint, link1);
-                router.addForwardingTableEntry(receiverEndpoint, link2);
+                router.addForwardingTableEntry(senderEndpoint, senderLink);
+                router.addForwardingTableEntry(receiverEndpoint, receiverLink);
 
-                this.getLinks().add(link1);
-                this.getLinks().add(link2);
-
-                this.getRouters().add(router);
-            } else if (numRouters == 2) { // Base case: 2 Routers
-                Router router = new Router(simulator, "router", bufferSize);
-
-                // The transmission time and propagation time for this link
-                // are set by default to zero (negligible compared to clock tick).
-                Link link1 = new Link(
-                        simulator, "link1", senderEndpoint, router,
-                        0.001, /* transmission time as fraction of a clock tick */
-                        0.001  /* propagation time as fraction of a clock tick */
-                );
-                Link link2 = new Link(	// all that matters is that t_x(Link2) = 10 * t_x(Link1)
-                        simulator, "link2", receiverEndpoint, router,
-                        0.01, /* transmission time as fraction of a clock tick */
-                        0.001 /* propagation time as fraction of a clock tick */
-                );
-
-                // Configure the endpoints with their adjoining links:
-                senderEndpoint.setLink(link1);
-                receiverEndpoint.setLink(link2);
-
-                // Configure the router's forwarding table:
-                router.addForwardingTableEntry(senderEndpoint, link1);
-                router.addForwardingTableEntry(receiverEndpoint, link2);
-
-                this.getLinks().add(link1);
-                this.getLinks().add(link2);
+                this.getLinks().add(senderLink);
+                this.getLinks().add(receiverLink);
 
                 this.getRouters().add(router);
             } else { // Else N Routers
@@ -176,18 +148,11 @@ public class DirectTopology extends Topology {
     }
 
     /**
-     * Gets link1 which is the link between the sender and router
-     * @return The link between the sender and router
-     */
-    public Link getLink1() {
-        return getLinkWithName("link1");
-    }
-
-    /**
-     * Gets link2 which is the link between the receiver and router
+     * Gets Link corresponding to the index
+     * @param index The index of the router; Ranges from 0 to n - 1
      * @return The link between the receiver and router
      */
-    public Link getLink2() {
-        return getLinkWithName("link2");
+    public Link getLink(int index) {
+        return getLinkWithName("link" + index);
     }
 }
