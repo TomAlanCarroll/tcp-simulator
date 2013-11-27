@@ -6,10 +6,14 @@
  */
 package simulation;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import au.com.bytecode.opencsv.CSVWriter;
 import simulation.network.Endpoint;
 import simulation.network.Link;
 import simulation.network.Packet;
@@ -96,11 +100,21 @@ public class Simulator {
 //		(REPORTING_SIMULATOR | REPORTING_LINKS | REPORTING_ROUTERS | REPORTING_SENDERS | REPORTING_RECEIVERS);
 //		(REPORTING_SIMULATOR | REPORTING_LINKS | REPORTING_ROUTERS | REPORTING_SENDERS | REPORTING_RTO_ESTIMATE);
 
+    public static final String STATISTICS_FILENAME = "statistics.csv";
+
 	/** Total data length to send (in bytes).
 	 * In reality, this data should be read from a file or another input stream. */
 	public static final int TOTAL_DATA_LENGTH = 1000000;
 
+    /**
+     * The topology for this simulation. See {@link simulation.network.topology} for choices
+     */
     private Topology topology;
+
+    /**
+     * The type of congestion avoidance algorithm used in the simulation.
+     */
+    private String congestionAvoidanceAlgorithm;
 
 	/** Simulation iterations represent the clock ticks for the simulation.
 	 * Each iteration is a transmission round, which is one RTT cycle long.
@@ -136,10 +150,13 @@ public class Simulator {
 			tcpReceiverVersion_ + " receiver).\n"
 		);
 
+        // Keep track of the congestion avoidance algorithm
+        this.congestionAvoidanceAlgorithm = tcpVersion_;
+
         if (topology.equalsIgnoreCase("direct")) {
             this.topology = new DirectTopology(this, tcpVersion_, bufferSize_, rcvWindow_, numRouters);
         } else if (topology.equalsIgnoreCase("cloud")) {
-            this.topology = new CloudTopology(this, tcpVersion_, bufferSize_, rcvWindow_, numClients);
+            this.topology = new CloudTopology(this, tcpVersion_, bufferSize_, rcvWindow_, numClients, numRouters);
         }  else { // Use the DirectTopology by default
             this.topology = new DirectTopology(this, tcpVersion_, bufferSize_, rcvWindow_, numRouters);
         }
@@ -160,7 +177,7 @@ public class Simulator {
 	 * @param inputBuffer_ the input bytestream to be transported to the receiving endpoint
 	 * @param num_iter_ the number of iterations (transmission rounds) to run the simulator
 	 */
-	public void run(java.nio.ByteBuffer inputBuffer_, int num_iter_) {
+	public void runDirectTopologySimulation(java.nio.ByteBuffer inputBuffer_, int num_iter_) {
 
 		// Print the headline for the output columns.
 		// Note that the "time" is given as the integer number of RTTs
@@ -172,299 +189,392 @@ public class Simulator {
 			"================================================================"
 		);
 
-        /**
-         * Direct Topology
-         */
-        if (topology instanceof DirectTopology) {
-            // The Simulator also plays the role of an Application
-            // that is using services of the TCP protocol.
-            // Here we provide the input data stream only in the first iteration
-            // and in the remaining iterations the system clocks itself
-            // -- based on the received ACKs, the sender will keep
-            // sending any remaining data.
-            //
-            // The sender will not transmit the entire input stream at once.
-            // Rather, it sends burst-by-burst of segments, as allowed by
-            // its congestion window and other parameters,
-            // which are set based on the received ACKs.
-            Iterator<Router> routerIterator;
-            Packet tmpPkt_ = new Packet(((DirectTopology) topology).getReceiverEndpoint(), inputBuffer_.array());
-            ((DirectTopology) topology).getSenderEndpoint().send(null, tmpPkt_);
+        // The Simulator also plays the role of an Application
+        // that is using services of the TCP protocol.
+        // Here we provide the input data stream only in the first iteration
+        // and in the remaining iterations the system clocks itself
+        // -- based on the received ACKs, the sender will keep
+        // sending any remaining data.
+        //
+        // The sender will not transmit the entire input stream at once.
+        // Rather, it sends burst-by-burst of segments, as allowed by
+        // its congestion window and other parameters,
+        // which are set based on the received ACKs.
+        Iterator<Router> routerIterator;
+        Packet tmpPkt_ = new Packet(((DirectTopology) topology).getReceiverEndpoint(), inputBuffer_.array());
+        ((DirectTopology) topology).getSenderEndpoint().send(null, tmpPkt_);
 
-            // Iterate for the given number of transmission rounds.
-            // Note that an iteration represents a clock tick for the simulation.
-            // Each iteration is a transmission round, which is one RTT cycle long.
-            for (int iter_ = 0; iter_ <= num_iter_; iter_++) {
-                if (
-                    (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
-                ) {
-                    System.out.println(	//TODO prints incorrectly for the first iteration!
-                        "Start of RTT #" + (int)currentTime +
-                        " ................................................"
-                    );
-                } else {
-                    System.out.print(currentTime + "\t");
-                }
-
-                // Let the first link move any packets:
-                ((DirectTopology) topology).getLinkWithName("link0").process(2);
-                // Our main goal is that the sending endpoint handles acknowledgments
-                // received via the router in the previous transmission round, if any.
-
-                ((DirectTopology) topology).getSenderEndpoint().process(1);
-
-                // Let the first link again move any packets:
-                ((DirectTopology) topology).getLinkWithName("link0").process(1);
-                // This time our main goal is that link transports any new
-                // data packets from sender to the router.
-
-                // Let the router relay any packets:
-                for (int i = 0; i < topology.getRouters().size(); i++) {
-                    if (i > 0) {
-                        ((DirectTopology) topology).getLinkWithName("link" + i).process(2);
-                    }
-
-                    topology.getRouters().get(i).process(0);
-
-                    if (i > 0 && i < topology.getRouters().size() - 1) {
-                        ((DirectTopology) topology).getLinkWithName("link" + i).process(1);
-                    }
-                }
-                // As a result, the router may have transmitted some packets
-                // to its adjoining links.
-
-                // Let the second link move any packets:
-                ((DirectTopology) topology).getLinkWithName("link" + topology.getRouters().size()).process(2);
-                // Our main goal is that the receiver processes the received
-                // data segments and generates ACKs. The ACKs will be ready
-                // for the trip back to the sending endpoint.
-
-                ((DirectTopology) topology).getReceiverEndpoint().process(2);
-
-                // Let the second link move any packets:
-                ((DirectTopology) topology).getLinkWithName("link" + topology.getRouters().size()).process(1);
-                // Our main goal is to deliver the ACKs from the receiver to the router.
-
-                // Let the router relay any packets:
-                for (int i = topology.getRouters().size() - 1; i >= 0; i--) {
-                    topology.getRouters().get(i).process(0);
-
-                    ((DirectTopology) topology).getLinkWithName("link" + i).process(1);
-                }
-                // As a result, the router may have transmitted some packets
-                // to its adjoining links.
-
-                if (
-                    (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
-                ) {
-                    System.out.println(
-                        "End of RTT #" + (int)currentTime +
-                        "   ------------------------------------------------\n"
-                    );
-                }
-
-                // At the end of an iteration, increment the simulation clock by one tick:
-                currentTime += 1.0;
-            } //end for() loop
-
-            System.out.println(
-                "     ====================  E N D   O F   S E S S I O N  ===================="
-            );
-            // How many bytes were transmitted:
-            int actualTotalTransmitted_ = ((DirectTopology) topology).getSenderEndpoint().getSender().getTotalBytesTransmitted();
-            int actualTotalRetransmitted_ = ((DirectTopology) topology).getSenderEndpoint().getSender().getTotalBytesRetransmitted();
-
-            // How many bytes could have been transmitted with the given
-            // bottleneck capacity, if there were no losses due to
-            // exceeding the bottleneck capacity
-            // (Note that we add one MSS for the packet that immediately
-            // goes into transmission in the router):
-            int potentialTotalTransmitted_ =
-                (((DirectTopology) topology).getRouters().get(0).getMaxBufferSize() + Sender.MSS) * num_iter_;
-
-            // Report the utilization of the sender:
-            float utilization_ =
-                (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
-            System.out.println(
-                "Sender utilization: " + Math.round(utilization_*100.0f) + " %"
-            );
-
-            // Report the throughput:
-            System.out.println(
-                    "Throughput (MB/RTTs): " + ((double)actualTotalTransmitted_ / 1048576) / num_iter_
-            );
-
-            // Report the retransmission ratio:
-            System.out.println(
-                    "Retransmission Ratio (% per MB): " + ((double)actualTotalRetransmitted_ / (double)actualTotalTransmitted_) * 100 + "%"
-            );
-
-            // Report the number of timeouts:
-            System.out.println(
-                    "Timeouts: " + ((DirectTopology) topology).getSenderEndpoint().getSender().getTimeoutCounter()
-            );
-        }
-        /**
-         * Cloud Topology
-         */
-        else if (topology instanceof CloudTopology) {
-            // The Simulator also plays the role of an Application
-            // that is using services of the TCP protocol.
-            // Here we provide the input data stream only in the first iteration
-            // and in the remaining iterations the system clocks itself
-            // -- based on the received ACKs, the sender will keep
-            // sending any remaining data.
-            //
-            // The sender will not transmit the entire input stream at once.
-            // Rather, it sends burst-by-burst of segments, as allowed by
-            // its congestion window and other parameters,
-            // which are set based on the received ACKs.
-
-            Endpoint client, server;
-            Packet tmpPkt_;
-            Iterator<Endpoint> clientIterator = ((CloudTopology) topology).getClientEndpoints().iterator();
-            Iterator<Endpoint> serverIterator = ((CloudTopology) topology).getServerEndpoints().iterator();
-            while (clientIterator.hasNext()) {
-                client = clientIterator.next();
-                tmpPkt_ = new Packet(topology.getEndpointWithName(topology.getEndpointNameMappings().get(client.getName())), inputBuffer_.array());
-                client.send(null, tmpPkt_);
+        // Iterate for the given number of transmission rounds.
+        // Note that an iteration represents a clock tick for the simulation.
+        // Each iteration is a transmission round, which is one RTT cycle long.
+        for (int iter_ = 0; iter_ <= num_iter_; iter_++) {
+            if (
+                (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
+            ) {
+                System.out.println(	//TODO prints incorrectly for the first iteration!
+                    "Start of RTT #" + (int)currentTime +
+                    " ................................................"
+                );
+            } else {
+                System.out.print(currentTime + "\t");
             }
 
-            // Iterate for the given number of transmission rounds.
-            // Note that an iteration represents a clock tick for the simulation.
-            // Each iteration is a transmission round, which is one RTT cycle long.
-            for (int iter_ = 0; iter_ <= num_iter_; iter_++) {
-                if (
-                        (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
-                        ) {
-                    System.out.println(	//TODO prints incorrectly for the first iteration!
-                            "Start of RTT #" + (int)currentTime +
-                                    " ................................................"
-                    );
-                } else {
-                    System.out.print(currentTime + "\t");
+            // Let the first link move any packets:
+            ((DirectTopology) topology).getLinkWithName("link0").process(2);
+            // Our main goal is that the sending endpoint handles acknowledgments
+            // received via the router in the previous transmission round, if any.
+
+            ((DirectTopology) topology).getSenderEndpoint().process(1);
+
+            // Let the first link again move any packets:
+            ((DirectTopology) topology).getLinkWithName("link0").process(1);
+            // This time our main goal is that link transports any new
+            // data packets from sender to the router.
+
+            // Let the router relay any packets:
+            for (int i = 0; i < topology.getRouters().size(); i++) {
+                if (i > 0) {
+                    ((DirectTopology) topology).getLinkWithName("link" + i).process(2);
                 }
 
-                // Let the first link move any packets:
-                Link clientLink;
-                Iterator<Link> clientLinkIterator = ((CloudTopology) topology).getClientLinks().iterator();
-                while (clientLinkIterator.hasNext()) {
-                    clientLink = clientLinkIterator.next();
-                    clientLink.process(2);
+                topology.getRouters().get(i).process(0);
+
+                if (i > 0 && i < topology.getRouters().size() - 1) {
+                    ((DirectTopology) topology).getLinkWithName("link" + i).process(1);
                 }
+            }
+            // As a result, the router may have transmitted some packets
+            // to its adjoining links.
 
-                clientIterator = ((CloudTopology) topology).getClientEndpoints().iterator();
-                while (clientIterator.hasNext()) {
-                    client = clientIterator.next();
-                    client.process(1);
-                }
+            // Let the second link move any packets:
+            ((DirectTopology) topology).getLinkWithName("link" + topology.getRouters().size()).process(2);
+            // Our main goal is that the receiver processes the received
+            // data segments and generates ACKs. The ACKs will be ready
+            // for the trip back to the sending endpoint.
 
-                // Let the first links again move any packets:
-                // Let the first links move any packets:
-                clientLinkIterator = ((CloudTopology) topology).getClientLinks().iterator();
-                while (clientLinkIterator.hasNext()) {
-                    clientLink = clientLinkIterator.next();
-                    clientLink.process(1);
-                }
+            ((DirectTopology) topology).getReceiverEndpoint().process(2);
 
-                // This time our main goal is that link transports any new
-                // data packets from sender to the router.
+            // Let the second link move any packets:
+            ((DirectTopology) topology).getLinkWithName("link" + topology.getRouters().size()).process(1);
+            // Our main goal is to deliver the ACKs from the receiver to the router.
 
-                // Let the router relay any packets:
-                ((CloudTopology) topology).getRouter().process(0);
-                // As a result, the router may have transmitted some packets
-                // to its adjoining links.
+            // Let the router relay any packets:
+            for (int i = topology.getRouters().size() - 1; i >= 0; i--) {
+                topology.getRouters().get(i).process(0);
 
-                // Let the second link move any packets:
-                Link serverLink;
-                Iterator<Link> serverLinkIterator = ((CloudTopology) topology).getServerLinks().iterator();
-                while (serverLinkIterator.hasNext()) {
-                    serverLink = serverLinkIterator.next();
-                    serverLink.process(2);
-                }
-                // Our main goal is that the receiver processes the received
-                // data segments and generates ACKs. The ACKs will be ready
-                // for the trip back to the sending endpoint.
-                serverIterator = ((CloudTopology) topology).getServerEndpoints().iterator();
-                while (serverIterator.hasNext()) {
-                    server = serverIterator.next();
-                    server.process(2);
-                }
+                ((DirectTopology) topology).getLinkWithName("link" + i).process(1);
+            }
+            // As a result, the router may have transmitted some packets
+            // to its adjoining links.
 
-                // Let the second link move any packets:
-                serverLinkIterator = ((CloudTopology) topology).getServerLinks().iterator();
-                while (serverLinkIterator.hasNext()) {
-                    serverLink = serverLinkIterator.next();
-                    serverLink.process(1);
-                }
-                // Our main goal is to deliver the ACKs from the receiver to the router.
+            if (
+                (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
+            ) {
+                System.out.println(
+                    "End of RTT #" + (int)currentTime +
+                    "   ------------------------------------------------\n"
+                );
+            }
 
-                // Let the router relay any packets:
-                ((CloudTopology) topology).getRouter().process(0);
-                // As a result, the router may have transmitted some packets
-                // to its adjoining links.
+            // At the end of an iteration, increment the simulation clock by one tick:
+            currentTime += 1.0;
+        } //end for() loop
 
-                if (
-                        (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
-                        ) {
-                    System.out.println(
-                            "End of RTT #" + (int)currentTime +
-                                    "   ------------------------------------------------\n"
-                    );
-                }
+        System.out.println(
+            "     ====================  E N D   O F   S E S S I O N  ===================="
+        );
+        // How many bytes were transmitted:
+        int actualTotalTransmitted_ = ((DirectTopology) topology).getSenderEndpoint().getSender().getTotalBytesTransmitted();
+        int actualTotalRetransmitted_ = ((DirectTopology) topology).getSenderEndpoint().getSender().getTotalBytesRetransmitted();
+        int numTimeouts = ((DirectTopology) topology).getSenderEndpoint().getSender().getTimeoutCounter();
 
-                // At the end of an iteration, increment the simulation clock by one tick:
-                currentTime += 1.0;
-            } //end for() loop
+        // How many bytes could have been transmitted with the given
+        // bottleneck capacity, if there were no losses due to
+        // exceeding the bottleneck capacity
+        // (Note that we add one MSS for the packet that immediately
+        // goes into transmission in the router):
+        int potentialTotalTransmitted_ =
+            (((DirectTopology) topology).getRouters().get(0).getMaxBufferSize() + Sender.MSS) * num_iter_;
 
-            System.out.println(
-                    "     ====================  E N D   O F   S E S S I O N  ===================="
-            );
-            // How many bytes were transmitted:
-            int actualTotalTransmitted_ = 0;
-            int actualTotalRetransmitted_ = 0;
-            int numTimeouts = 0;
+        // Report the utilization of the sender:
+        float utilization_ =
+            (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
+
+
+        // Show the statistics
+        processStatistics(utilization_, actualTotalTransmitted_, actualTotalRetransmitted_, num_iter_, numTimeouts);
+	} //end the function runDirectTopologySimulation()
+
+    /**
+     * Runs the simulator for the given number of transmission rounds
+     * (iterations), starting with the current iteration stored in
+     * the parameter {@link #currentTime}.<BR>
+     * Reports the outcomes of the individual transmissions.
+     * At the end, reports the overall sender utilization.</p>
+     *
+     * <p><b>Note:</b> The router is invoked to relay only the packets
+     * (and it may drop some of them).  For the sake
+     * of simplicity, the acknowledgment segments simply
+     * bypass the router, so they are never dropped.
+     *
+     * @param inputBuffer_ the input bytestream to be transported to the receiving endpoint
+     * @param num_iter_ the number of iterations (transmission rounds) to run the simulator
+     */
+    public void runCloudTopologySimulation(java.nio.ByteBuffer inputBuffer_, int num_iter_) {
+
+        // Print the headline for the output columns.
+        // Note that the "time" is given as the integer number of RTTs
+        // and represents the current iteration through the main loop.
+        System.out.println(
+                "Time\tCongWindow\tEffctWindow\tFlightSize\tSSThresh"
+        );
+        System.out.println(
+                "================================================================"
+        );
+
+        // The Simulator also plays the role of an Application
+        // that is using services of the TCP protocol.
+        // Here we provide the input data stream only in the first iteration
+        // and in the remaining iterations the system clocks itself
+        // -- based on the received ACKs, the sender will keep
+        // sending any remaining data.
+        //
+        // The sender will not transmit the entire input stream at once.
+        // Rather, it sends burst-by-burst of segments, as allowed by
+        // its congestion window and other parameters,
+        // which are set based on the received ACKs.
+
+        Endpoint client, server;
+        Packet tmpPkt_;
+        Iterator<Endpoint> clientIterator = ((CloudTopology) topology).getClientEndpoints().iterator();
+        Iterator<Endpoint> serverIterator;
+        while (clientIterator.hasNext()) {
+            client = clientIterator.next();
+            tmpPkt_ = new Packet(topology.getEndpointWithName(topology.getEndpointNameMappings().get(client.getName())), inputBuffer_.array());
+            client.send(null, tmpPkt_);
+        }
+
+        // Iterate for the given number of transmission rounds.
+        // Note that an iteration represents a clock tick for the simulation.
+        // Each iteration is a transmission round, which is one RTT cycle long.
+        for (int iter_ = 0; iter_ <= num_iter_; iter_++) {
+            if (
+                    (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
+                    ) {
+                System.out.println(	//TODO prints incorrectly for the first iteration!
+                        "Start of RTT #" + (int)currentTime +
+                                " ................................................"
+                );
+            } else {
+                System.out.print(currentTime + "\t");
+            }
+
+            // Let the first link move any packets:
+            Link clientLink;
+            Iterator<Link> clientLinkIterator = ((CloudTopology) topology).getLinksContainingName("client").iterator();
+            while (clientLinkIterator.hasNext()) {
+                clientLink = clientLinkIterator.next();
+                clientLink.process(2);
+            }
+
             clientIterator = ((CloudTopology) topology).getClientEndpoints().iterator();
             while (clientIterator.hasNext()) {
                 client = clientIterator.next();
-                actualTotalTransmitted_ += client.getSender().getTotalBytesTransmitted();
-                actualTotalRetransmitted_ += client.getSender().getTotalBytesRetransmitted();
-                numTimeouts += client.getSender().getTimeoutCounter();
+                client.process(1);
             }
 
-            // How many bytes could have been transmitted with the given
-            // bottleneck capacity, if there were no losses due to
-            // exceeding the bottleneck capacity
-            // (Note that we add one MSS for the packet that immediately
-            // goes into transmission in the router):
-            int potentialTotalTransmitted_ =
-                    (((CloudTopology) topology).getRouter().getMaxBufferSize() + Sender.MSS) * num_iter_;
+            // Let the first links again move any packets:
+            // Let the first links move any packets:
+            clientLinkIterator = ((CloudTopology) topology).getLinksContainingName("client").iterator();
+            while (clientLinkIterator.hasNext()) {
+                clientLink = clientLinkIterator.next();
+                clientLink.process(1);
+            }
 
-            // Report the utilization of the sender:
-            float utilization_ =
-                    (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
-            System.out.println(
-                    "Sender utilization: " + Math.round(utilization_*100.0f) + " %"
-            );
+            // This time our main goal is that link transports any new
+            // data packets from sender to the router.
 
-            // Report the throughput:
-            System.out.println(
-                    "Throughput (MB/RTTs): " + ((double)actualTotalTransmitted_ / 1048576) / num_iter_
-            );
+            // Let the routers relay any packets:
+            for (int i = 0; i < topology.getRouters().size(); i++) {
+                if (i > 0) {
+                    ((CloudTopology) topology).getLinkWithName("link" + i).process(2);
+                }
 
-            // Report the retransmission ratio:
-            System.out.println(
-                    "Retransmission Ratio (% per MB): " + ((double)actualTotalRetransmitted_ / (double)actualTotalTransmitted_) * 100 + "%"
-            );
+                topology.getRouters().get(i).process(0);
 
-            // Report the number of timeouts:
-            System.out.println(
-                    "Timeouts: " + numTimeouts
-            );
-        } else {
-            throw new IllegalStateException("Unsupported topology selected");
+                if (i > 0 && i < topology.getRouters().size() - 1) {
+                    ((CloudTopology) topology).getLinkWithName("link" + i).process(1);
+                }
+            }
+            // As a result, the router may have transmitted some packets
+            // to its adjoining links.
+
+            // Let the second link move any packets:
+            Link serverLink;
+            Iterator<Link> serverLinkIterator = ((CloudTopology) topology).getLinksContainingName("server").iterator();
+            while (serverLinkIterator.hasNext()) {
+                serverLink = serverLinkIterator.next();
+                serverLink.process(2);
+            }
+            // Our main goal is that the receiver processes the received
+            // data segments and generates ACKs. The ACKs will be ready
+            // for the trip back to the sending endpoint.
+            serverIterator = ((CloudTopology) topology).getServerEndpoints().iterator();
+            while (serverIterator.hasNext()) {
+                server = serverIterator.next();
+                server.process(2);
+            }
+
+            // Let the second link move any packets:
+            serverLinkIterator = ((CloudTopology) topology).getLinksContainingName("server").iterator();
+            while (serverLinkIterator.hasNext()) {
+                serverLink = serverLinkIterator.next();
+                serverLink.process(1);
+            }
+            // Our main goal is to deliver the ACKs from the receiver to the router.
+
+            // Let the router relay any packets:
+            for (int i = topology.getRouters().size() - 1; i >= 1; i--) {
+                topology.getRouters().get(i).process(0);
+
+                ((CloudTopology) topology).getLinkWithName("link" + i).process(1);
+            }
+
+            ((CloudTopology) topology).getLinkWithName("clientLink0").process(1);
+            // As a result, the router may have transmitted some packets
+            // to its adjoining links.
+
+            if (
+                    (Simulator.currentReportingLevel  & Simulator.REPORTING_SIMULATOR) != 0
+                    ) {
+                System.out.println(
+                        "End of RTT #" + (int)currentTime +
+                                "   ------------------------------------------------\n"
+                );
+            }
+
+            // At the end of an iteration, increment the simulation clock by one tick:
+            currentTime += 1.0;
+        } //end for() loop
+
+        System.out.println(
+                "     ====================  E N D   O F   S E S S I O N  ===================="
+        );
+        // How many bytes were transmitted:
+        int actualTotalTransmitted_ = 0;
+        int actualTotalRetransmitted_ = 0;
+        int numTimeouts = 0;
+        clientIterator = ((CloudTopology) topology).getClientEndpoints().iterator();
+        while (clientIterator.hasNext()) {
+            client = clientIterator.next();
+            actualTotalTransmitted_ += client.getSender().getTotalBytesTransmitted();
+            actualTotalRetransmitted_ += client.getSender().getTotalBytesRetransmitted();
+            numTimeouts += client.getSender().getTimeoutCounter();
         }
-	} //end the function run()
+
+        // How many bytes could have been transmitted with the given
+        // bottleneck capacity, if there were no losses due to
+        // exceeding the bottleneck capacity
+        // (Note that we add one MSS for the packet that immediately
+        // goes into transmission in the router):
+        int potentialTotalTransmitted_ =
+                (((CloudTopology) topology).getRouters().get(0).getMaxBufferSize() + Sender.MSS) * num_iter_;
+
+        // Report the utilization of the sender:
+        float utilization_ =
+                (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
+
+        // Show the statistics
+        processStatistics(utilization_, actualTotalTransmitted_, actualTotalRetransmitted_, num_iter_, numTimeouts);
+    } //end the function runCloudTopologySimulation()
+
+    /**
+     * Processes the statistics for the simulation by printing them to the console
+     * and saving them to a CSV file named statistics.csv. If the CSV file does not exist
+     * one will be created in the directory where the simulation is running. If the CSV
+     * file does exist then the statistics will be appended to the file.
+     *
+     * @param utilization_ The percent utilization of capacity for the sender(s)
+     * @param actualTotalTransmitted_ The number of bytes successfully transmitted
+     * @param actualTotalRetransmitted_ The number of bytes retransmitted
+     * @param num_iter_ The number of iterations for the simulator
+     * @param numTimeouts The number of timeouts encountered in the simulation
+     */
+    private void processStatistics(float utilization_, int actualTotalTransmitted_, int actualTotalRetransmitted_, int num_iter_, int numTimeouts) {
+        // Calculate the statistics
+        String numberOfIterations = String.valueOf(num_iter_);
+        String senderUtilization = BigDecimal.valueOf(Math.round(utilization_*100.0f)).toPlainString();
+        String throughput = BigDecimal.valueOf(((double)actualTotalTransmitted_ / 1048576) / (double)num_iter_).toPlainString();
+        String retransmissionRatio = BigDecimal.valueOf(((double)actualTotalRetransmitted_ / (double)actualTotalTransmitted_) * 100).toPlainString();
+        String numberOfTimeouts = String.valueOf(numTimeouts);
+
+        // Print them to the console
+        System.out.println(
+                "Number of Iterations: " + numberOfIterations
+        );
+
+        System.out.println(
+                "Sender utilization: " + senderUtilization + " %"
+        );
+
+        // Report the throughput:
+        System.out.println(
+                "Throughput (MB/RTTs): " + throughput
+        );
+
+        // Report the retransmission ratio:
+        System.out.println(
+                "Retransmission Ratio (% per MB): " + retransmissionRatio + "%"
+        );
+
+        // Report the number of timeouts:
+        System.out.println(
+                "Timeouts: " + numberOfTimeouts
+        );
+
+
+        // Write the statistics to a CSV file
+        CSVWriter writer = null;
+        boolean fileExists = true;
+
+        try {
+            File statisticsFile = new File(STATISTICS_FILENAME);
+            String[] cells =  new String[6];
+            if (!(statisticsFile.exists())){ // Add column headers when the writer is available
+                fileExists = false;
+            }
+
+            writer = new CSVWriter(new FileWriter(statisticsFile, true), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_ESCAPE_CHARACTER);
+
+            if (!fileExists){ // Add column headers if this is a new file
+                cells[0] = "Number of Iterations";
+                cells[1] = "Congestion Avoidance Algorithm";
+                cells[2] = "Sender Utilization";
+                cells[3] = "Throughput (MB/RTTs)";
+                cells[4] = "Retransmission Ratio (% per MB)";
+                cells[5] = "Timeouts";
+                writer.writeNext(cells);
+            }
+
+            cells[0] = numberOfIterations;
+            cells[1] = congestionAvoidanceAlgorithm;
+            cells[2] = senderUtilization;
+            cells[3] = throughput;
+            cells[4] = retransmissionRatio;
+            cells[5] = numberOfTimeouts;
+            writer.writeNext(cells);
+        } catch (Exception exception) {
+            System.out.println("Unable to write statistics to " + STATISTICS_FILENAME);
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (Exception exception) {
+                    System.out.println("Unable to close file " + STATISTICS_FILENAME);
+                }
+            }
+        }
+    }
 
 	/** The main method. Takes the number of iterations as
 	 * the input and runs the simulator. To run this program,
@@ -561,7 +671,13 @@ public class Simulator {
 		java.nio.ByteBuffer inputBuffer_ = ByteBuffer.allocate(TOTAL_DATA_LENGTH);
 
 		// Run the simulator for the given number of transmission rounds.
-		simulator.run(inputBuffer_, numIter_.intValue());
+        if (simulator.topology instanceof DirectTopology) {
+		    simulator.runDirectTopologySimulation(inputBuffer_, numIter_.intValue());
+        } else if (simulator.topology instanceof CloudTopology) {
+            simulator.runCloudTopologySimulation(inputBuffer_, numIter_.intValue());
+        } else {
+            throw new IllegalStateException("Unknown topology encountered while trying to run the simulation.");
+        }
 	}
 
 	/**

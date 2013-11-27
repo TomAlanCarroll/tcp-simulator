@@ -21,17 +21,14 @@ public class CloudTopology extends Topology {
      * @param bufferSize The memory size for the {@link Router} to queue incoming packets
      * @param receiverBufferWindow The size of the receive buffer for the {@link simulation.tcp.Receiver}
      * @param numClients The number of clients (and servers) to simulate
+     * @param numRouters The number of intermediate router nodes between the senders and the receivers
      */
-    public CloudTopology(Simulator simulator, String tcpVersion, int bufferSize, int receiverBufferWindow, int numClients) {
+    public CloudTopology(Simulator simulator, String tcpVersion, int bufferSize, int receiverBufferWindow, int numClients, int numRouters) {
         super();
 
         try {
             Endpoint clientEndpoint = null, serverEndpoint = null;
             Link clientLink, serverLink;
-            Iterator<Endpoint> clientIterator;
-
-
-            Router router = new Router(simulator, "router", bufferSize);
 
             for (int i = 0; i < numClients; i++) {
                 // Client Endpoint
@@ -54,30 +51,69 @@ public class CloudTopology extends Topology {
 
                 // Add the client server mapping
                 this.getEndpointNameMappings().put("client" + i, "server" + i);
+            }
 
-                // The transmission time and propagation time for this link
-                // are set by default to zero (negligible compared to clock tick).
-                clientLink = new Link(
-                        simulator, "clientLink" + i, clientEndpoint, router,
-                        0.001, /* transmission time as fraction of a clock tick */
-                        0.001  /* propagation time as fraction of a clock tick */
-                );
-                serverLink = new Link(	// all that matters is that t_x(serverLink) = 10 * t_x(clientLink)
-                        simulator, "serverLink" + i, serverEndpoint, router,
-                        0.01, /* transmission time as fraction of a clock tick */
-                        0.001 /* propagation time as fraction of a clock tick */
-                );
+            Router router;
+            Link link;
+            for (int i = 0; i < numRouters; i++) {
+                router = new Router(simulator, "router" + i, bufferSize);
 
-                // Configure the endpoints with their adjoining links:
-                clientEndpoint.setLink(clientLink);
-                serverEndpoint.setLink(serverLink);
+                if (i == 0) { // Connect to clients
+                    for (int j = 0; j < numClients; j++) {
+                        // The transmission time and propagation time for this link
+                        // are set by default to zero (negligible compared to clock tick).
+                        clientLink = new Link(
+                                simulator, "clientLink" + j, getEndpointWithName("client" + j), router,
+                                0.001, /* transmission time as fraction of a clock tick */
+                                0.001  /* propagation time as fraction of a clock tick */
+                        );
 
-                // Configure the router's forwarding table:
-                router.addForwardingTableEntry(clientEndpoint, clientLink);
-                router.addForwardingTableEntry(serverEndpoint, serverLink);
+                        // Configure the endpoints with their adjoining links:
+                        getEndpointWithName("client" + j).setLink(clientLink);
 
-                this.getLinks().add(clientLink);
-                this.getLinks().add(serverLink);
+                        // Configure the router's forwarding table:
+                        router.addForwardingTableEntry(getEndpointWithName("client" + j), clientLink);
+
+                        this.getLinks().add(clientLink);
+                    }
+                }
+
+                if (i == numRouters  - 1) { // Connect to receiver
+                    for (int j = 0; j < numClients; j++) {
+                        // The transmission time and propagation time for this link
+                        // are set by default to zero (negligible compared to clock tick).
+                        serverLink = new Link(	// all that matters is that t_x(serverLink) = 10 * t_x(clientLink)
+                                simulator, "serverLink" + i, getEndpointWithName("server" + j), router,
+                                0.01, /* transmission time as fraction of a clock tick */
+                                0.001 /* propagation time as fraction of a clock tick */
+                        );
+
+                        // Configure the endpoints with their adjoining links:
+                        getEndpointWithName("server" + j).setLink(serverLink);
+
+                        // Configure the router's forwarding table:
+                        router.addForwardingTableEntry(getEndpointWithName("server" + j), serverLink);
+
+                        this.getLinks().add(serverLink);
+                    }
+                }
+
+                if (i > 0) {
+                    // Connect router to the previous router
+                    link = new Link(
+                            simulator, "link" + i, getRouterWithName("router" + (i - 1)), router,
+                            0.001, /* transmission time as fraction of a clock tick */
+                            0.001  /* propagation time as fraction of a clock tick */
+                    );
+
+                    // Configure the router's forwarding table:
+                    for (int j = 0; j < numClients; j++) {
+                        router.addForwardingTableEntry(getEndpointWithName("client" + j), link);
+                        getRouterWithName("router" + (i - 1)).addForwardingTableEntry(getEndpointWithName("server" + j), link);
+                    }
+
+                    this.getLinks().add(link);
+                }
 
                 this.getRouters().add(router);
             }
@@ -104,26 +140,11 @@ public class CloudTopology extends Topology {
     }
 
     /**
-     * Gets the only router in this topology
-     * @return The router
+     * Gets Link corresponding to the index
+     * @param index The index of the router; Ranges from 0 to n - 1
+     * @return The link between the receiver and router
      */
-    public Router getRouter() {
-        return getRouterWithName("router");
-    }
-
-    /**
-     * Gets the links between the clients and the router
-     * @return The link between the clients and the router
-     */
-    public Set<Link> getClientLinks() {
-        return getLinksContainingName("client");
-    }
-
-    /**
-     * Gets the links between the servers and the router
-     * @return The link between the servers and the router
-     */
-    public Set<Link> getServerLinks() {
-        return getLinksContainingName("server");
+    public Link getLink(int index) {
+        return getLinkWithName("link" + index);
     }
 }

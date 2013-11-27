@@ -130,7 +130,7 @@ public class Router extends NetworkElement {
  	 * 
  	 * @param mode_ the processing mode, currently not used and ignored
  	 * @see Router.OutputPort#transmitPackets()
- 	 * @see simulation.Simulator#run(java.nio.ByteBuffer, int)
+ 	 * @see simulation.Simulator#runDirectTopologySimulation(java.nio.ByteBuffer, int)
 	 */
 	@Override
 	public void process(int mode_) {
