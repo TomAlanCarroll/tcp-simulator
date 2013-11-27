@@ -484,7 +484,10 @@ public class Simulator {
         }
         String numberOfRouters = String.valueOf(topology.getRouters().size());
         String throughput = BigDecimal.valueOf(((double)actualTotalTransmitted_ / 1048576) / (double)num_iter_).toPlainString();
-        String retransmissionRatio = BigDecimal.valueOf(((double)actualTotalRetransmitted_ / (double)actualTotalTransmitted_) * 100).toPlainString();
+        String retransmissionRatio = "0";
+        if (actualTotalTransmitted_ != 0) {
+            retransmissionRatio = BigDecimal.valueOf(((double)actualTotalRetransmitted_ / (double)actualTotalTransmitted_) * 100).toPlainString();
+        }
         String numberOfTimeouts = String.valueOf(numTimeouts);
 
         // Print them to the console
