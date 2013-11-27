@@ -20,7 +20,7 @@ setlocal enabledelayedexpansion enableextensions
 for /L %%i in (1 1 %maxClients%) do (
     set /a numClients = !numClients! + 1
 ::    set /a numRouters = !numRouters! + 1
-    java -classpath "bin;lib\opencsv-2.3.jar;" simulation.Simulator !congestionAvoidanceAlgorithm! 100 !topology! 6244 65536 !numClients! !numRouters!
+    java -classpath "bin;lib\opencsv-2.3.jar;" simulation.Simulator !congestionAvoidanceAlgorithm! 100 Cloud 6244 65536 !numClients! !numRouters!
 
     :: The two lines below are used for testing
     echo %numClients%  !numClients!
