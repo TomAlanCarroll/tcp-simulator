@@ -100,7 +100,8 @@ public class Simulator {
 //		(REPORTING_SIMULATOR | REPORTING_LINKS | REPORTING_ROUTERS | REPORTING_SENDERS | REPORTING_RECEIVERS);
 //		(REPORTING_SIMULATOR | REPORTING_LINKS | REPORTING_ROUTERS | REPORTING_SENDERS | REPORTING_RTO_ESTIMATE);
 
-    public static final String STATISTICS_FILENAME = "statistics.csv";
+    public static final String STATISTICS_FILENAME = "statistics";
+    public static final String STATISTICS_FILE_EXTENSION = ".csv";
 
 	/** Total data length to send (in bytes).
 	 * In reality, this data should be read from a file or another input stream. */
@@ -288,21 +289,8 @@ public class Simulator {
         int actualTotalRetransmitted_ = ((DirectTopology) topology).getSenderEndpoint().getSender().getTotalBytesRetransmitted();
         int numTimeouts = ((DirectTopology) topology).getSenderEndpoint().getSender().getTimeoutCounter();
 
-        // How many bytes could have been transmitted with the given
-        // bottleneck capacity, if there were no losses due to
-        // exceeding the bottleneck capacity
-        // (Note that we add one MSS for the packet that immediately
-        // goes into transmission in the router):
-        int potentialTotalTransmitted_ =
-            (((DirectTopology) topology).getRouters().get(0).getMaxBufferSize() + Sender.MSS) * num_iter_;
-
-        // Report the utilization of the sender:
-        float utilization_ =
-            (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
-
-
-        // Show the statistics
-        processStatistics(utilization_, actualTotalTransmitted_, actualTotalRetransmitted_, num_iter_, numTimeouts);
+        // Process the statistics
+        processStatistics(actualTotalTransmitted_, actualTotalRetransmitted_, num_iter_, numTimeouts);
 	} //end the function runDirectTopologySimulation()
 
     /**
@@ -472,20 +460,8 @@ public class Simulator {
             numTimeouts += client.getSender().getTimeoutCounter();
         }
 
-        // How many bytes could have been transmitted with the given
-        // bottleneck capacity, if there were no losses due to
-        // exceeding the bottleneck capacity
-        // (Note that we add one MSS for the packet that immediately
-        // goes into transmission in the router):
-        int potentialTotalTransmitted_ =
-                (((CloudTopology) topology).getRouters().get(0).getMaxBufferSize() + Sender.MSS) * num_iter_;
-
-        // Report the utilization of the sender:
-        float utilization_ =
-                (float) actualTotalTransmitted_ / (float) potentialTotalTransmitted_;
-
-        // Show the statistics
-        processStatistics(utilization_, actualTotalTransmitted_, actualTotalRetransmitted_, num_iter_, numTimeouts);
+        // Process the statistics
+        processStatistics(actualTotalTransmitted_, actualTotalRetransmitted_, num_iter_, numTimeouts);
     } //end the function runCloudTopologySimulation()
 
     /**
@@ -494,16 +470,19 @@ public class Simulator {
      * one will be created in the directory where the simulation is running. If the CSV
      * file does exist then the statistics will be appended to the file.
      *
-     * @param utilization_ The percent utilization of capacity for the sender(s)
      * @param actualTotalTransmitted_ The number of bytes successfully transmitted
      * @param actualTotalRetransmitted_ The number of bytes retransmitted
      * @param num_iter_ The number of iterations for the simulator
      * @param numTimeouts The number of timeouts encountered in the simulation
      */
-    private void processStatistics(float utilization_, int actualTotalTransmitted_, int actualTotalRetransmitted_, int num_iter_, int numTimeouts) {
+    private void processStatistics(int actualTotalTransmitted_, int actualTotalRetransmitted_, int num_iter_, int numTimeouts) {
         // Calculate the statistics
         String numberOfIterations = String.valueOf(num_iter_);
-        String senderUtilization = BigDecimal.valueOf(Math.round(utilization_*100.0f)).toPlainString();
+        String numberOfSenders = "1";
+        if (this.topology instanceof CloudTopology) {
+            numberOfSenders = String.valueOf(topology.getEndpointNameMappings().keySet().size());
+        }
+        String numberOfRouters = String.valueOf(topology.getRouters().size());
         String throughput = BigDecimal.valueOf(((double)actualTotalTransmitted_ / 1048576) / (double)num_iter_).toPlainString();
         String retransmissionRatio = BigDecimal.valueOf(((double)actualTotalRetransmitted_ / (double)actualTotalTransmitted_) * 100).toPlainString();
         String numberOfTimeouts = String.valueOf(numTimeouts);
@@ -514,7 +493,11 @@ public class Simulator {
         );
 
         System.out.println(
-                "Sender utilization: " + senderUtilization + " %"
+                "Number of Senders: " + numberOfSenders
+        );
+
+        System.out.println(
+                "Number of Routers: " + numberOfRouters
         );
 
         // Report the throughput:
@@ -536,10 +519,11 @@ public class Simulator {
         // Write the statistics to a CSV file
         CSVWriter writer = null;
         boolean fileExists = true;
+        String fileName = STATISTICS_FILENAME + congestionAvoidanceAlgorithm + STATISTICS_FILE_EXTENSION;
 
         try {
-            File statisticsFile = new File(STATISTICS_FILENAME);
-            String[] cells =  new String[6];
+            File statisticsFile = new File(fileName);
+            String[] cells =  new String[7];
             if (!(statisticsFile.exists())){ // Add column headers when the writer is available
                 fileExists = false;
             }
@@ -548,31 +532,26 @@ public class Simulator {
 
             if (!fileExists){ // Add column headers if this is a new file
                 cells[0] = "Number of Iterations";
-                cells[1] = "Congestion Avoidance Algorithm";
-                cells[2] = "Sender Utilization";
-                cells[3] = "Throughput (MB/RTTs)";
-                cells[4] = "Retransmission Ratio (% per MB)";
-                cells[5] = "Timeouts";
+                cells[1] = "Number of Senders";
+                cells[2] = "Number of Routers";
+                cells[3] = "Congestion Avoidance Algorithm";
+                cells[4] = "Throughput (MB/RTTs)";
+                cells[5] = "Retransmission Ratio (% per MB)";
+                cells[6] = "Timeouts";
                 writer.writeNext(cells);
             }
 
             cells[0] = numberOfIterations;
-            cells[1] = congestionAvoidanceAlgorithm;
-            cells[2] = senderUtilization;
-            cells[3] = throughput;
-            cells[4] = retransmissionRatio;
-            cells[5] = numberOfTimeouts;
+            cells[1] = numberOfSenders;
+            cells[2] = numberOfRouters;
+            cells[3] = congestionAvoidanceAlgorithm;
+            cells[4] = throughput;
+            cells[5] = retransmissionRatio;
+            cells[6] = numberOfTimeouts;
             writer.writeNext(cells);
+            writer.close();
         } catch (Exception exception) {
-            System.out.println("Unable to write statistics to " + STATISTICS_FILENAME);
-        } finally {
-            if (writer != null) {
-                try {
-                    writer.close();
-                } catch (Exception exception) {
-                    System.out.println("Unable to close file " + STATISTICS_FILENAME);
-                }
-            }
+            System.out.println("Unable to write statistics to " + fileName);
         }
     }
 
