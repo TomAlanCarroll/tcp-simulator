@@ -109,6 +109,10 @@ public class SenderReno extends Sender {
 		// Retransmit the oldest unacknowledged (presumably lost) segment.
 		// This is called "Fast Retransmit"
 	    Segment oldestSegment_ = getOldestUnacknowledgedSegment();
+
+        // Add the retransmitted bytes to the retransmitByteCounter for statistics
+        retransmitByteCounter += oldestSegment_.dataPayload.length;
+
 		// The timestamp of retransmitted segments should be set to "-1"
 	    // to avoid performing RTT estimation based on retransmitted segments:
 		oldestSegment_.timestamp = -1;
