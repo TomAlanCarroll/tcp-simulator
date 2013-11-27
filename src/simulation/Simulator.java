@@ -519,7 +519,13 @@ public class Simulator {
         // Write the statistics to a CSV file
         CSVWriter writer = null;
         boolean fileExists = true;
-        String fileName = STATISTICS_FILENAME + congestionAvoidanceAlgorithm + STATISTICS_FILE_EXTENSION;
+        String topologyFilename = "";
+        if (topology instanceof CloudTopology) {
+            topologyFilename = "Cloud";
+        } else if (topology instanceof DirectTopology) {
+            topologyFilename = "Direct";
+        }
+        String fileName = STATISTICS_FILENAME + congestionAvoidanceAlgorithm + topologyFilename +  STATISTICS_FILE_EXTENSION;
 
         try {
             File statisticsFile = new File(fileName);
