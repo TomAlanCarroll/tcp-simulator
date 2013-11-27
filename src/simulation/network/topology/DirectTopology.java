@@ -89,37 +89,44 @@ public class DirectTopology extends Topology {
                                 0.001  /* propagation time as fraction of a clock tick */
                         );
 
-                        this.getLinks().add(link);
-
                         // Configure the endpoints with their adjoining links:
                         senderEndpoint.setLink(link);
 
                         // Configure the router's forwarding table:
                         router.addForwardingTableEntry(senderEndpoint, link);
-                    } else if (i == numRouters - 1) { // Connect to receiver
+
+                        this.getLinks().add(link);
+                    }
+
+                    if (i == numRouters  - 1) { // Connect to receiver
                         link = new Link(	// all that matters is that t_x(Link2) = 10 * t_x(Link1)
-                                simulator, "link" + i, receiverEndpoint, router,
+                                simulator, "link" + (i + 1), receiverEndpoint, router,
                                 0.01, /* transmission time as fraction of a clock tick */
                                 0.001 /* propagation time as fraction of a clock tick */
                         );
-
-                        this.getLinks().add(link);
 
                         // Configure the endpoints with their adjoining links:
                         receiverEndpoint.setLink(link);
 
                         // Configure the router's forwarding table:
                         router.addForwardingTableEntry(receiverEndpoint, link);
-                    } else { // Connect router to the previous router
+
+                        this.getLinks().add(link);
+                    }
+
+                    if (i > 0) {
+                        // Connect router to the previous router
                         link = new Link(
                                 simulator, "link" + i, getRouterWithName("router" + (i - 1)), router,
                                 0.001, /* transmission time as fraction of a clock tick */
                                 0.001  /* propagation time as fraction of a clock tick */
                         );
-                        this.getLinks().add(link);
 
                         // Configure the router's forwarding table:
-                        router.addForwardingTableEntry(getRouterWithName("router" + (i - 1)), link);
+                        router.addForwardingTableEntry(senderEndpoint, link);
+                        getRouterWithName("router" + (i - 1)).addForwardingTableEntry(receiverEndpoint, link);
+
+                        this.getLinks().add(link);
                     }
 
                     this.getRouters().add(router);

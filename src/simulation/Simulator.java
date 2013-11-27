@@ -207,34 +207,34 @@ public class Simulator {
                 }
 
                 // Let the first link move any packets:
-                ((DirectTopology) topology).getLink(0).process(2);
+                ((DirectTopology) topology).getLinkWithName("link0").process(2);
                 // Our main goal is that the sending endpoint handles acknowledgments
                 // received via the router in the previous transmission round, if any.
 
                 ((DirectTopology) topology).getSenderEndpoint().process(1);
 
                 // Let the first link again move any packets:
-                ((DirectTopology) topology).getLink(0).process(1);
+                ((DirectTopology) topology).getLinkWithName("link0").process(1);
                 // This time our main goal is that link transports any new
                 // data packets from sender to the router.
 
                 // Let the router relay any packets:
                 for (int i = 0; i < topology.getRouters().size(); i++) {
                     if (i > 0) {
-                        ((DirectTopology) topology).getLink(i).process(2);
+                        ((DirectTopology) topology).getLinkWithName("link" + i).process(2);
                     }
 
                     topology.getRouters().get(i).process(0);
 
                     if (i > 0 && i < topology.getRouters().size() - 1) {
-                        ((DirectTopology) topology).getLink(i).process(1);
+                        ((DirectTopology) topology).getLinkWithName("link" + i).process(1);
                     }
                 }
                 // As a result, the router may have transmitted some packets
                 // to its adjoining links.
 
                 // Let the second link move any packets:
-                ((DirectTopology) topology).getLink(topology.getRouters().size()).process(2);
+                ((DirectTopology) topology).getLinkWithName("link" + topology.getRouters().size()).process(2);
                 // Our main goal is that the receiver processes the received
                 // data segments and generates ACKs. The ACKs will be ready
                 // for the trip back to the sending endpoint.
@@ -242,14 +242,14 @@ public class Simulator {
                 ((DirectTopology) topology).getReceiverEndpoint().process(2);
 
                 // Let the second link move any packets:
-                ((DirectTopology) topology).getLink(topology.getRouters().size()).process(1);
+                ((DirectTopology) topology).getLinkWithName("link" + topology.getRouters().size()).process(1);
                 // Our main goal is to deliver the ACKs from the receiver to the router.
 
                 // Let the router relay any packets:
                 for (int i = topology.getRouters().size() - 1; i >= 0; i--) {
                     topology.getRouters().get(i).process(0);
 
-                    ((DirectTopology) topology).getLink(i).process(1);
+                    ((DirectTopology) topology).getLinkWithName("link" + i).process(1);
                 }
                 // As a result, the router may have transmitted some packets
                 // to its adjoining links.
