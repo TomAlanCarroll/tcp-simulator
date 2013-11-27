@@ -59,7 +59,7 @@ public abstract class NetworkElement {
 	 * since the previous call to this method ({@link #lastTimeProcessCalled}).
 	 * 
 	 * @param mode_ the processing mode, depends on the actual network element
-	 * @see simulation.Simulator#run(java.nio.ByteBuffer, int)
+	 * @see simulation.Simulator#runDirectTopologySimulation(java.nio.ByteBuffer, int)
 	 */
 	public abstract void process(int mode_);
 
