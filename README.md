@@ -4,12 +4,12 @@ tcp-simulator
 This is a networking simulator for TCP built on top of Ivan Marsic's TCP Simulator
 
 Prerequisites
-=============
+-------------
 1. JDK 1.7 or higher.
 2. (Optional) Windows is required to run the convenience .bat files. However, the simulator can be run any operating system with the JDK installed.
 
 How to Run
-=============
+--------------
 To run the simulator, execute either of these batch files:
 
 1. runCloudSimulation.bat
