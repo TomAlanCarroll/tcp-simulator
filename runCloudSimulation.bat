@@ -8,7 +8,7 @@ echo Welcome, this will run the simulation.
 :: Set the congestion avoidance algorithm (Tahoe, Reno, or NewReno)
 set /P congestionAvoidanceAlgorithm= Please enter the congestion avoidance algorithm (Tahoe, Reno, or NewReno):
 :: Let the user pick to increase the number of clients, routers, or both
-set /P increaseOption= Please enter the which network elements to increase (Clients, Routers, or Both):
+set /P increaseOption= Please enter the which network elements to increase (Clients or Routers):
 
 set /a numClients = 0
 set /a numRouters = 0
@@ -23,9 +23,6 @@ for /L %%i in (1 1 100) do (
         set /a numRouters = 1
     ) else if "%increaseOption%" == "Routers" (
         set /a numClients = 1
-        set /a numRouters = !numRouters! + 1
-    ) else if "%increaseOption%" == "Both" (
-        set /a numClients = !numClients! + 2
         set /a numRouters = !numRouters! + 1
     )
     java -classpath "bin;lib\opencsv-2.3.jar;" simulation.Simulator !congestionAvoidanceAlgorithm! 100 Cloud 6244 65536 !numClients! !numRouters!
