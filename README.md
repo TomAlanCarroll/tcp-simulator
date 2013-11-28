@@ -15,10 +15,17 @@ The available congestion avoidance algorithms for use in this simulation are:
 2. Reno
 3. NewReno
 
-For the Cloud Topology simulation, the simulation runs starting with 2 clients and gradually increases to 200 clients.
-This is not far off from Apache's default MaxClient setting of 256 clients. Alternatively, the number of routers
-between the clients and servers can be increased with each run of the simulation. The first run of the simulation
-starts with 1 router and gradually increases to 100 routers between the clients and the servers.
+For the Cloud Topology simulation, the user can also specify whether to increase number of clients with each
+simulation run or to increase the number of routers between the clients and servers. This option can be set by the
+user providing one of the following choices:
+1. Clients
+2. Routers
+
+If the user selects to increase the number of clients with each simulation run, then the simulation starts with
+2 clients and gradually increases to 200 clients. This is not far off from Apache's default MaxClient setting
+of 256 clients. Alternatively, if the user selects to increase the number of routers, the first run of the simulation
+starts with 1 router and gradually increases to 100 routers between the clients and the servers. This simulation
+scenario is useful for testing
 
 For the Direct Topology simulation,the number of routers between the one sender and one receiver is increased
 with each run of the simulation. The first run of the simulation starts with 1 router and gradually increases to
